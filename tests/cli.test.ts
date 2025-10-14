@@ -24,7 +24,9 @@ test.describe('CLI Commands', () => {
 
   test('should show version', () => {
     const result = execSync(`node ${cliPath} --version`, { encoding: 'utf-8' });
-    expect(result).toContain('2.0.8');
+    // Get version from package.json to match CLI version
+    const packageVersion = require('../package.json').version;
+    expect(result).toContain(packageVersion);
   });
 
   test('should setup reporter configuration', () => {

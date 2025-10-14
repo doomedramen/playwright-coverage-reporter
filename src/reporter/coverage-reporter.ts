@@ -565,14 +565,9 @@ export class PlaywrightCoverageReporter {
     const calculator = new CoverageCalculator();
     const coverage = calculator.calculateCoverage(uniqueElements, this.testedSelectors);
 
-    // Generate reports using existing reporter
-    const { CoverageReporter } = await import('../reporters/coverage-reporter');
-    const reporter = new CoverageReporter({
-      outputPath: this.config.outputPath,
-      format: this.config.reportFormat,
-      threshold: this.config.coverageThreshold,
-      verbose: this.options.verbose
-    });
+    // Generate reports using the istanbul reporter
+    const { IstanbulReporter } = await import('../reporters/istanbul-reporter');
+    const reporter = new IstanbulReporter();
 
     // Combine all page sources for comprehensive reporting
     const allPageSources = new Map([
@@ -606,7 +601,15 @@ export class PlaywrightCoverageReporter {
       }
     };
 
-    await reporter.generateReport(coverageReport);
+    // Convert PageElement[] to PageCoverage[] for IstanbulReporter
+    const pageCoverages = Array.from(allPageSources.entries()).map(([url, elements]) => ({
+      url,
+      elements,
+      coverage: calculator.calculateCoverage(elements, this.testedSelectors, url)
+    }));
+
+    // Save coverage files using IstanbulReporter
+    await reporter.saveCoverageFiles(pageCoverages, this.config.outputPath);
   }
 
   /**

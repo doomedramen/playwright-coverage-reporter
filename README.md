@@ -5,13 +5,19 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![codecov](https://codecov.io/gh/DoomedRamen/playwright-coverage-reporter/branch/main/graph/badge.svg)](https://codecov.io/gh/DoomedRamen/playwright-coverage-reporter)
 
-> 📊 **v2.0.0** - Native Playwright integration for UI element coverage analysis. Discover interactive elements, analyze selector coverage, and generate comprehensive reports with Istanbul support. **Now with real E2E test verification!**
+> 📊 **v2.0.15** - Native Playwright integration for UI element coverage analysis. Discover interactive elements, analyze selector coverage, and generate comprehensive reports with Istanbul support. **Now with real E2E test verification!**
 
 Playwright Coverage Reporter helps you ensure your E2E tests are thoroughly testing all interactive elements on your web pages. It discovers buttons, inputs, links, and other interactive elements, then analyzes your test files to see which elements are being tested.
 
-## 🆕 What's New in v2.0.7
+## 🆕 What's New in v2.0.15
 
-### 🔧 **CLI Configuration Fixes**
+### 🔧 **Recent CLI & Development Fixes**
+- **Fixed Playwright test command execution** - Resolved "unknown command 'test'" error with proper path resolution
+- **Updated version management** - CLI now reads version dynamically from package.json
+- **Fixed pre-push hook** - Tests now run properly before git pushes
+- **Enhanced development workflow** - Improved build and test integration
+
+### 🔧 **CLI Configuration Fixes (v2.0.7-2.0.14)**
 - **Fixed CLI threshold handling** - Preset defaults now work correctly (development: 70%, testing: 100%)
 - **Fixed configuration merge function** - Properly handles `undefined` and `null` values
 - **Fixed CLI flag handling** - `--no-runtime-discovery` and `--no-screenshots` work correctly
@@ -19,10 +25,10 @@ Playwright Coverage Reporter helps you ensure your E2E tests are thoroughly test
 - **Fixed JavaScript syntax generation** - CLI now generates valid JavaScript syntax instead of JSON
 
 ### ✅ **Test Suite Improvements**
-- **53/56 tests passing** - Significant improvement from previous versions
 - **All CLI configuration tests passing** - Core functionality fully working
 - **Fixed preset configuration handling** - All types (development, ci, testing, basic, comprehensive) work as expected
 - **Comprehensive edge case coverage** - Configuration merge and validation improvements
+- **Stable test execution** - Tests run reliably with pre-push hooks
 
 ### 🏗️ **Native Playwright Integration**
 - **Seamless reporter integration** - no more fighting with TypeScript infrastructure

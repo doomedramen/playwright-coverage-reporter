@@ -14,7 +14,7 @@ export class CoverageCalculator {
         totalElements: 0,
         coveredElements: 0,
         uncoveredElements: [],
-        coveragePercentage: 100,
+        coveragePercentage: 0, // Changed from 100 to 0 - no elements means no coverage
         coverageByType: {} as Record<ElementType, number>,
         elementsByPage: pageUrl ? { [pageUrl]: { total: 0, covered: 0, elements: [] } } : {}
       };
@@ -328,7 +328,7 @@ export class CoverageCalculator {
         totalElements: 0,
         coveredElements: 0,
         uncoveredElements: [],
-        coveragePercentage: 100,
+        coveragePercentage: 0, // Changed from 100 to 0 - no pages means no coverage
         coverageByType: {} as Record<ElementType, number>,
         elementsByPage: {}
       };
@@ -385,7 +385,7 @@ export class CoverageCalculator {
     const coveredElements = allCoveredElements.length;
     const coveragePercentage = totalElements > 0
       ? Math.round((coveredElements / totalElements) * 100)
-      : 100;
+      : 0; // Changed from 100 to 0 - no elements means no coverage
 
     // Convert to percentages
     const finalCoverageByType: Record<ElementType, number> = {} as any;
@@ -411,7 +411,9 @@ export class CoverageCalculator {
   generateRecommendations(coverage: CoverageResult): string[] {
     const recommendations: string[] = [];
 
-    if (coverage.coveragePercentage < 50) {
+    if (coverage.totalElements === 0) {
+      recommendations.push('Critical: No interactive elements were discovered. Check if pages are loading correctly or if element discovery is working.');
+    } else if (coverage.coveragePercentage < 50) {
       recommendations.push('Critical: Your test coverage is below 50%. Consider adding more E2E tests.');
     } else if (coverage.coveragePercentage < 75) {
       recommendations.push('Warning: Test coverage is below 75%. Some interactive elements may not be tested.');

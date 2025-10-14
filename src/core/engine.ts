@@ -253,8 +253,10 @@ export class PlaywrightCoverEngine {
 
     // Add user-specified URLs from config (highest priority)
     if (this.config.pageUrls && this.config.pageUrls.length > 0) {
-      urls.push(...this.config.pageUrls);
-      console.log(`📍 Using ${this.config.pageUrls.length} URLs from configuration: ${this.config.pageUrls.join(', ')}`);
+      // Check if web server is running on a different port and update URLs
+      const updatedUrls = await this.updateUrlsForRunningServers(this.config.pageUrls);
+      urls.push(...updatedUrls);
+      console.log(`📍 Using ${updatedUrls.length} URLs from configuration: ${updatedUrls.join(', ')}`);
     }
 
     // Add user-specified URLs from environment variable
@@ -293,6 +295,53 @@ export class PlaywrightCoverEngine {
     }
 
     return urls.filter(url => url && url.length > 0);
+  }
+
+  /**
+   * Update URLs to match actual running server ports (fallback port detection)
+   */
+  private async updateUrlsForRunningServers(configUrls: string[]): Promise<string[]> {
+    const updatedUrls: string[] = [];
+
+    for (const configUrl of configUrls) {
+      try {
+        const url = new URL(configUrl);
+        const expectedPort = parseInt(url.port) || 3000;
+        let urlUpdated = false;
+
+        // Check if the expected port is actually running
+        const isRunning = await this.webServerManager.isServerRunning(configUrl);
+        if (isRunning) {
+          updatedUrls.push(configUrl);
+          urlUpdated = true;
+          continue;
+        }
+
+        // Check fallback ports to see if server is running on a different port
+        const fallbackPorts = [expectedPort + 1, expectedPort + 2, 3001, 3002, 3003, 8000, 8001, 8080, 8081];
+
+        for (const fallbackPort of fallbackPorts) {
+          const fallbackUrl = `${url.protocol}//${url.hostname}:${fallbackPort}`;
+          if (await this.webServerManager.isServerRunning(fallbackUrl)) {
+            console.log(`🔄 Updating URL from ${configUrl} to ${fallbackUrl} (fallback port detected)`);
+            updatedUrls.push(fallbackUrl);
+            urlUpdated = true;
+            break;
+          }
+        }
+
+        // If no fallback port worked, keep the original URL (it will fail later)
+        if (!urlUpdated) {
+          updatedUrls.push(configUrl);
+        }
+
+      } catch (error) {
+        // Invalid URL, keep as-is
+        updatedUrls.push(configUrl);
+      }
+    }
+
+    return updatedUrls;
   }
 
   /**

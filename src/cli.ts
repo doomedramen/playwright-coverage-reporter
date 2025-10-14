@@ -20,6 +20,7 @@ interface CliOptions {
   'discover-elements'?: boolean;
   'test-pattern'?: string[];
   'page-url'?: string[];
+  pageUrl?: string[]; // Commander.js converts kebab-case to camelCase
   'web-server'?: boolean;
   'playwright-config'?: string;
 }
@@ -271,10 +272,11 @@ async function loadConfiguration(options: CliOptions): Promise<PlaywrightCoverCo
     config.discoverElements = options['discover-elements'];
   }
 
-  if (options['page-url'] && options['page-url'].length > 0) {
-    config.pageUrls = options['page-url'];
-  } else if (options['pageUrl'] && options['pageUrl'].length > 0) {
-    config.pageUrls = options['pageUrl'];
+  // Commander.js converts kebab-case to camelCase, so check both
+  const pageUrls = options['page-url'] || options['pageUrl'];
+  if (pageUrls && pageUrls.length > 0) {
+    config.pageUrls = pageUrls;
+    console.log(`📍 Using ${pageUrls.length} URLs from command line: ${pageUrls.join(', ')}`);
   }
 
   // Only override webServer if the user explicitly set it

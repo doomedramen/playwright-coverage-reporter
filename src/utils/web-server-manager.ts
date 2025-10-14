@@ -171,7 +171,7 @@ export class WebServerManager {
   /**
    * Check if a server is already running at the given URL
    */
-  private async isServerRunning(url: URL | string): Promise<boolean> {
+  async isServerRunning(url: URL | string): Promise<boolean> {
     try {
       const response = await fetch(url.toString(), {
         method: 'HEAD',

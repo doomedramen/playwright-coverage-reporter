@@ -76,16 +76,23 @@ export class PlaywrightCoverageReporter {
    * Called when test run starts
    */
   async onBegin(config: FullConfig, suite: Suite) {
-    if (this.options.verbose) {
-      console.log('🎭 Playwright Coverage Reporter starting...');
-    }
+    try {
+      if (this.options.verbose) {
+        console.log('🎭 Playwright Coverage Reporter starting...');
+      }
 
-    // Discover test files and extract selectors statically
-    await this.discoverTests(suite);
+      // Discover test files and extract selectors statically
+      await this.discoverTests(suite);
 
-    // If element discovery is enabled, discover elements from configured URLs
-    if (this.options.elementDiscovery && this.options.pageUrls.length > 0) {
-      await this.discoverElementsFromUrls();
+      // If element discovery is enabled, discover elements from configured URLs
+      if (this.options.elementDiscovery && this.options.pageUrls.length > 0) {
+        await this.discoverElementsFromUrls();
+      }
+    } catch (error) {
+      if (this.options.verbose) {
+        console.warn('⚠️ Error in onBegin:', error);
+      }
+      // Don't re-throw to avoid crashing the test run
     }
   }
 
@@ -110,15 +117,31 @@ export class PlaywrightCoverageReporter {
    * Called when test run ends
    */
   async onEnd(result: FullResult) {
-    if (this.options.verbose) {
-      console.log('🎭 Generating coverage report...');
+    try {
+      if (this.options.verbose) {
+        console.log('🎭 Generating coverage report...');
+      }
+
+      // Calculate coverage using collected data
+      await this.generateCoverageReport().catch((error) => {
+        if (this.options.verbose) {
+          console.warn('⚠️ Failed to generate coverage report:', error);
+        }
+      });
+    } catch (error) {
+      if (this.options.verbose) {
+        console.warn('⚠️ Error in onEnd:', error);
+      }
     }
 
-    // Calculate coverage using collected data
-    await this.generateCoverageReport();
-
-    // Clean up browser resources
-    await this.cleanup();
+    // Clean up browser resources (always try to cleanup)
+    try {
+      await this.cleanup();
+    } catch (error) {
+      if (this.options.verbose) {
+        console.warn('⚠️ Cleanup failed:', error);
+      }
+    }
   }
 
   /**
@@ -623,13 +646,22 @@ export class PlaywrightCoverageReporter {
    * Clean up browser resources
    */
   private async cleanup() {
-    if (this.context) {
-      await this.context.close();
-      this.context = null;
+    try {
+      if (this.context) {
+        await this.context.close().catch(() => {}); // Ignore errors during context close
+        this.context = null;
+      }
+    } catch (error) {
+      // Ignore cleanup errors
     }
-    if (this.browser) {
-      await this.browser.close();
-      this.browser = null;
+
+    try {
+      if (this.browser) {
+        await this.browser.close().catch(() => {}); // Ignore errors during browser close
+        this.browser = null;
+      }
+    } catch (error) {
+      // Ignore cleanup errors
     }
   }
 

@@ -12,7 +12,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [16.x, 18.x, 20.x]
+        node-version: [18.x, 20.x]
 
     steps:
     - uses: actions/checkout@v4
@@ -56,9 +56,10 @@ jobs:
     - name: Check if should publish
       id: check-publish
       run: |
-        # Check if this is a version bump commit
-        if [[ "${{ github.event.head_commit.message }}" == chore(version)* ]]; then
+        # Check if this is a version bump commit from package-bump
+        if [[ "${{ github.event.head_commit.message }}" == chore(version)* ]] || [[ "${{ github.event.head_commit.message }}" == Update* ]]; then
           echo "should_publish=true" >> $GITHUB_OUTPUT
+          echo "Found version bump commit: ${{ github.event.head_commit.message }}"
         fi
 
     - name: Publish to NPM

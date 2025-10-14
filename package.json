@@ -1,6 +1,6 @@
 {
   "name": "playwright-coverage-reporter",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "🎯 UI element coverage reporter for Playwright E2E tests. Discover interactive elements, analyze selector coverage, and generate comprehensive reports with Istanbul support.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -71,7 +71,7 @@
   },
   "homepage": "https://github.com/DoomedRamen/playwright-coverage-reporter#readme",
   "engines": {
-    "node": ">=16.0.0"
+    "node": ">=18.0.0"
   },
   "publishConfig": {
     "access": "public"

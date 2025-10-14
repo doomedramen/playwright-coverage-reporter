@@ -1,20 +1,42 @@
 import { defineConfig, devices } from '@playwright/test';
+import { PlaywrightCoverageReporter } from './dist/index.js';
 
 export default defineConfig({
   testDir: './tests',
-  fullyParallel: false, // Run tests sequentially for better error handling
+  fullyParallel: true,
   forbidOnly: !!process.env.CI,
   retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : 2,
+  workers: process.env.CI ? 1 : undefined,
 
   reporter: [
-    ['list']
+    ['list'],
+    [
+      PlaywrightCoverageReporter,
+      {
+        outputPath: './coverage-report',
+        format: 'html',
+        threshold: 70,
+        verbose: true,
+        elementDiscovery: true,
+        pageUrls: [
+          'http://localhost:3000'
+        ],
+        runtimeDiscovery: true,
+        captureScreenshots: true
+      }
+    ]
   ],
 
   use: {
-    trace: 'retain-on-failure',
+    baseURL: 'http://localhost:3000',
+    trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    timeout: 30000,
+  },
+
+  webServer: {
+    command: 'npm start',
+    url: 'http://localhost:3000',
+    reuseExistingServer: !process.env.CI,
   },
 
   projects: [
@@ -22,9 +44,13 @@ export default defineConfig({
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
     },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
   ],
-
-  // Global setup and teardown
-  globalSetup: require.resolve('./tests/global-setup.ts'),
-  globalTeardown: require.resolve('./tests/global-teardown.ts'),
 });

@@ -1,4 +1,12 @@
-import { WebServerConfig } from '../utils/web-server-manager';
+// Web server configuration interface
+export interface WebServerConfig {
+  command: string;
+  url?: string;
+  port?: number;
+  reuseExistingServer?: boolean;
+  timeout?: number;
+  env?: Record<string, string>;
+}
 
 export interface PageElement {
   selector: string;

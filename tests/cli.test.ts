@@ -15,11 +15,10 @@ test.describe('CLI Commands', () => {
 
   test('should show help', () => {
     const result = execSync(`node ${cliPath} --help`, { encoding: 'utf-8' });
-    expect(result).toContain('Coverage tool for Playwright E2E tests');
-    expect(result).toContain('analyze');
-    expect(result).toContain('init');
+    expect(result).toContain('Configuration tool for Playwright Coverage Reporter');
     expect(result).toContain('setup-reporter');
     expect(result).toContain('validate-reporter');
+    expect(result).toContain('migrate-to-reporter');
   });
 
   test('should show version', () => {

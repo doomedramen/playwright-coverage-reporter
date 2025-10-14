@@ -1,22 +1,18 @@
-// Main exports for playwright-coverage-reporter
+// Playwright Coverage Reporter - Main Exports
 
-export { PlaywrightCoverEngine } from './core/engine';
-export { StaticAnalyzer } from './analyzers/static-analyzer';
-export { ElementDiscoverer } from './utils/element-discoverer';
-export { CoverageCalculator } from './utils/coverage-calculator';
-export { CoverageReporter } from './reporters/coverage-reporter';
-export { test as coverageTest } from './fixtures/coverage-fixture';
-
-// Playwright Reporter exports
+// Primary export: Playwright Reporter
 export { PlaywrightCoverageReporter } from './reporter/coverage-reporter';
 export type { CoverageReporterOptions } from './reporter/coverage-reporter';
 
-// Configuration helper
+// Custom fixtures for enhanced element discovery
+export { test as coverageTest } from './fixtures/coverage-fixture';
+export type { CoverageOptions, CoverageData, CoverageFixture } from './fixtures/coverage-fixture';
+
+// Configuration helpers
 export * from './config/playwright-config';
 
 // Type exports
 export type {
-  PlaywrightCoverConfig,
   PageElement,
   TestSelector,
   CoverageResult,
@@ -28,40 +24,3 @@ export type {
 
 // CLI functionality
 export * from './cli';
-
-// Default export
-import { PlaywrightCoverEngine } from './core/engine';
-import { PlaywrightCoverConfig } from './types';
-
-export default class PlaywrightCover {
-  private engine: PlaywrightCoverEngine;
-
-  constructor(config: Partial<PlaywrightCoverConfig> = {}) {
-    const defaultConfig: PlaywrightCoverConfig = {
-      include: ['**/*.spec.ts', '**/*.test.ts', '**/*.e2e.ts'],
-      exclude: ['node_modules/**', 'dist/**', '**/coverage/**'],
-      ignoreElements: [],
-      coverageThreshold: 80,
-      outputPath: './coverage-report',
-      reportFormat: 'console',
-      discoverElements: true,
-      staticAnalysis: true,
-      runtimeTracking: false,
-      ...config
-    };
-
-    this.engine = new PlaywrightCoverEngine(defaultConfig);
-  }
-
-  async analyze(): Promise<any> {
-    return this.engine.analyzeCoverage();
-  }
-
-  async generateSummary(): Promise<void> {
-    return this.engine.generateSummary();
-  }
-
-  async analyzeTestFile(testFilePath: string) {
-    return this.engine.analyzeTestFile(testFilePath);
-  }
-}

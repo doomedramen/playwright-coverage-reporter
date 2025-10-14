@@ -1,27 +1,42 @@
 {
-  "name": "playwright-cover",
-  "version": "0.1.0",
-  "description": "A coverage tool for Playwright E2E tests that tracks interactive element coverage",
+  "name": "playwright-coverage-reporter",
+  "version": "1.0.3",
+  "description": "🎯 UI element coverage reporter for Playwright E2E tests. Discover interactive elements, analyze selector coverage, and generate comprehensive reports with Istanbul support.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "bin": {
-    "playwright-cover": "dist/cli.js"
+    "playwright-coverage": "dist/cli.js"
   },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "jest",
+    "test": "jest --passWithNoTests",
+    "test:demo": "node dist/cli.js demo",
     "lint": "eslint src/**/*.ts",
-    "prepare": "npm run build"
+    "lint:fix": "eslint src/**/*.ts --fix",
+    "prepublishOnly": "npm run build && npm test",
+    "prepare": "npm run build",
+    "postinstall": "lefthook install",
+    "release": "npm run build && npm test && package-bump patch",
+    "release:minor": "npm run build && npm test && package-bump minor",
+    "release:major": "npm run build && npm test && package-bump major"
   },
   "keywords": [
     "playwright",
     "testing",
     "coverage",
     "e2e",
-    "automation"
+    "automation",
+    "ui-testing",
+    "element-coverage",
+    "test-coverage",
+    "istanbul",
+    "lcov",
+    "reporter",
+    "cli",
+    "typescript"
   ],
-  "author": "",
+  "author": "Martin Page <m@rtin.page>",
   "license": "MIT",
   "dependencies": {
     "@playwright/test": "^1.40.0",
@@ -35,6 +50,8 @@
     "@typescript-eslint/parser": "^6.13.0",
     "eslint": "^8.54.0",
     "jest": "^29.7.0",
+    "lefthook": "^1.13.6",
+    "package-bump": "^1.1.7",
     "ts-jest": "^29.1.0"
   },
   "peerDependencies": {
@@ -47,10 +64,16 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/playwright-cover.git"
+    "url": "https://github.com/DoomedRamen/playwright-coverage-reporter.git"
   },
   "bugs": {
-    "url": "https://github.com/yourusername/playwright-cover/issues"
+    "url": "https://github.com/DoomedRamen/playwright-coverage-reporter/issues"
   },
-  "homepage": "https://github.com/yourusername/playwright-cover#readme"
+  "homepage": "https://github.com/DoomedRamen/playwright-coverage-reporter#readme",
+  "engines": {
+    "node": ">=16.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
 }

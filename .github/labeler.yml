@@ -1,0 +1,22 @@
+# Labeler Configuration
+# Add labels to PRs based on changed files
+
+bug:
+  - "**/*.ts"
+  - "**/*.js"
+
+enhancement:
+  - "src/**/*.ts"
+  - "package.json"
+
+documentation:
+  - "*.md"
+  - "docs/**"
+
+ci/cd:
+  - ".github/**"
+
+dependencies:
+  - "package*.json"
+  - "yarn.lock"
+  - "package-lock.json"

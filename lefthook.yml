@@ -1,0 +1,23 @@
+# Lefthook configuration for Playwright Coverage Reporter
+# https://lefthook.dev/configuration/
+
+pre-commit:
+  commands:
+    # Build before committing
+    build:
+      run: npm run build
+      glob: "{src}/**/*.{ts,js}"
+
+    # Bump version on commits that change source files (but skip version bump commits)
+    version-bump:
+      run: npx -y package-bump@latest patch --stage
+
+pre-push:
+  commands:
+    # Full test suite before pushing
+    test:
+      run: npm test
+
+    # Demo test to ensure CLI works
+    demo-test:
+      run: npm run test:demo

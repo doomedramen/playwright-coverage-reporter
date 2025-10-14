@@ -87,7 +87,7 @@ export interface PlaywrightCoverConfig {
   ignoreElements: string[];
   coverageThreshold: number;
   outputPath: string;
-  reportFormat: 'html' | 'json' | 'console' | 'all';
+  reportFormat: 'html' | 'json' | 'console' | 'lcov' | 'istanbul' | 'all';
   discoverElements: boolean;
   staticAnalysis: boolean;
   runtimeTracking: boolean;

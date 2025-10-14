@@ -1,4 +1,4 @@
-// Main exports for playwright-cover
+// Main exports for playwright-coverage-reporter
 
 export { PlaywrightCoverEngine } from './core/engine';
 export { StaticAnalyzer } from './analyzers/static-analyzer';

@@ -1,6 +1,6 @@
 {
   "name": "playwright-coverage-reporter",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "🎯 UI element coverage reporter for Playwright E2E tests. Discover interactive elements, analyze selector coverage, and generate comprehensive reports with Istanbul support.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

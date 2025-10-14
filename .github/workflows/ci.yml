@@ -53,23 +53,12 @@ jobs:
     - name: Build
       run: npm run build
 
-    - name: Check if should publish
-      id: check-publish
-      run: |
-        # Check if this is a version bump commit from package-bump
-        if [[ "${{ github.event.head_commit.message }}" == chore(version)* ]] || [[ "${{ github.event.head_commit.message }}" == Update* ]]; then
-          echo "should_publish=true" >> $GITHUB_OUTPUT
-          echo "Found version bump commit: ${{ github.event.head_commit.message }}"
-        fi
-
     - name: Publish to NPM
-      if: steps.check-publish.outputs.should_publish == 'true'
       run: npm publish
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     - name: Create GitHub Release
-      if: steps.check-publish.outputs.should_publish == 'true'
       run: |
         # Get the version from package.json
         NEW_VERSION=$(node -p "require('./package.json').version")

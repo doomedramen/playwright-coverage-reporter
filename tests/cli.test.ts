@@ -298,15 +298,28 @@ test.describe('CLI Error Handling', () => {
   });
 
   test('should handle invalid options', () => {
-    // Some CLI commands may not throw errors immediately, so let's check if it handles gracefully
-    const result = execSync(`node ${cliPath} setup-reporter --type invalid-type`, {
-      encoding: 'utf-8',
-      stdio: 'pipe'
-    });
+    const tempDir = path.join(__dirname, 'temp');
+    if (!fs.existsSync(tempDir)) {
+      fs.mkdirSync(tempDir, { recursive: true });
+    }
 
-    // At minimum, it should not crash and should return some output
-    expect(result).toBeDefined();
-    expect(typeof result).toBe('string');
+    const configPath = path.join(tempDir, 'invalid-options-test.config.ts');
+
+    try {
+      // Some CLI commands may not throw errors immediately, so let's check if it handles gracefully
+      const result = execSync(`node ${cliPath} setup-reporter --type invalid-type --output ${configPath}`, {
+        encoding: 'utf-8',
+        stdio: 'pipe'
+      });
+
+      // At minimum, it should not crash and should return some output
+      expect(result).toBeDefined();
+      expect(typeof result).toBe('string');
+    } finally {
+      if (fs.existsSync(configPath)) {
+        fs.unlinkSync(configPath);
+      }
+    }
   });
 
   test('should handle missing required files in migration', () => {

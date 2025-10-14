@@ -764,6 +764,44 @@ test.describe('Navigation', () => {
 }
 
 /**
+ * Format configuration object as JavaScript syntax (without quotes around keys)
+ */
+function formatConfigAsJS(obj: any, indent: number = 2): string {
+  const indentStr = ' '.repeat(indent);
+  const nextIndentStr = ' '.repeat(indent + 2);
+
+  if (obj === null || obj === undefined) {
+    return 'null';
+  }
+
+  if (Array.isArray(obj)) {
+    if (obj.length === 0) return '[]';
+    return '[\n' + obj.map(item =>
+      nextIndentStr + formatConfigAsJS(item, indent + 2)
+    ).join(',\n') + '\n' + indentStr + ']';
+  }
+
+  if (typeof obj === 'object') {
+    const keys = Object.keys(obj);
+    if (keys.length === 0) return '{}';
+
+    return '{\n' + keys.map(key => {
+      const value = obj[key];
+      // Skip undefined values entirely
+      if (value === undefined) return null;
+      const formattedValue = formatConfigAsJS(value, indent + 2);
+      return nextIndentStr + key + ': ' + formattedValue;
+    }).filter(line => line !== null).join(',\n') + '\n' + indentStr + '}';
+  }
+
+  if (typeof obj === 'string') {
+    return `'${obj.replace(/'/g, "\\'")}'`;
+  }
+
+  return String(obj);
+}
+
+/**
  * Generate Playwright configuration content
  */
 function generatePlaywrightConfig(options: {
@@ -789,24 +827,24 @@ function generatePlaywrightConfig(options: {
   switch (type) {
     case 'ci':
       coverageConfig = CoveragePresets.ci({
-        threshold: options.threshold ? parseInt(options.threshold) : 80,
+        threshold: options.threshold && options.threshold !== '80' ? parseInt(options.threshold) : undefined,
         pageUrls
       });
       break;
     case 'testing':
       coverageConfig = CoveragePresets.testing({
-        threshold: options.threshold ? parseInt(options.threshold) : 100,
+        threshold: options.threshold && options.threshold !== '80' ? parseInt(options.threshold) : undefined,
         pageUrls
       });
       break;
     case 'basic':
       coverageConfig = CoveragePresets.basic({
-        threshold: options.threshold ? parseInt(options.threshold) : 80
+        threshold: options.threshold && options.threshold !== '80' ? parseInt(options.threshold) : undefined
       });
       break;
     case 'comprehensive':
       coverageConfig = CoveragePresets.comprehensive({
-        threshold: options.threshold ? parseInt(options.threshold) : 80,
+        threshold: options.threshold && options.threshold !== '80' ? parseInt(options.threshold) : undefined,
         pageUrls,
         runtimeDiscovery: !options.noRuntimeDiscovery,
         captureScreenshots: !options.noScreenshots
@@ -815,7 +853,7 @@ function generatePlaywrightConfig(options: {
     case 'development':
     default:
       coverageConfig = CoveragePresets.development({
-        threshold: options.threshold ? parseInt(options.threshold) : 70,
+        threshold: options.threshold && options.threshold !== '80' ? parseInt(options.threshold) : undefined,
         pageUrls,
         runtimeDiscovery: !options.noRuntimeDiscovery,
         captureScreenshots: !options.noScreenshots
@@ -834,11 +872,10 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
 
   reporter: [
-    ['html'],
-    ['json', { outputFile: 'test-results.json' }],
+    ['list'],
     [
       PlaywrightCoverageReporter,
-      ${JSON.stringify(coverageConfig, null, 6)}
+      ${formatConfigAsJS(coverageConfig, 6)}
     ]
   ],
 
@@ -1012,11 +1049,10 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
 
   reporter: [
-    ['html'],
-    ['json', { outputFile: 'test-results.json' }],
+    ['list'],
     [
       PlaywrightCoverageReporter,
-      ${JSON.stringify(coverageConfig, null, 6)}
+      ${formatConfigAsJS(coverageConfig, 6)}
     ]
   ],
 

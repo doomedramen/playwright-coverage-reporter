@@ -46,7 +46,8 @@ program
   .option('--discover-elements', 'Enable element discovery', true)
   .option('--test-pattern <patterns...>', 'Test file patterns')
   .option('--page-url <urls...>', 'Page URLs to analyze')
-  .option('--web-server', 'Start dev server automatically from Playwright config', false)
+  .option('--web-server', 'Start dev server automatically from Playwright config')
+  .option('--no-web-server', 'Disable automatic dev server startup')
   .option('--playwright-config <path>', 'Path to Playwright config file (default: playwright.config.js)')
   .action(async (options: CliOptions) => {
     try {
@@ -98,7 +99,7 @@ program
         staticAnalysis: true,
         runtimeTracking: false,
         pageUrls: [],
-        webServer: false
+        webServer: undefined
       };
 
       const configContent = `
@@ -144,7 +145,8 @@ program
   .option('-e, --exclude <patterns...>', 'Exclude file patterns (default: ["node_modules/**", "dist/**"])')
   .option('-v, --verbose', 'Verbose output')
   .option('--page-url <urls...>', 'Page URLs to analyze')
-  .option('--web-server', 'Start dev server automatically from Playwright config', false)
+  .option('--web-server', 'Start dev server automatically from Playwright config')
+  .option('--no-web-server', 'Disable automatic dev server startup')
   .option('--playwright-config <path>', 'Path to Playwright config file (default: playwright.config.js)')
   .action(async (options: CliOptions) => {
     try {
@@ -275,8 +277,9 @@ async function loadConfiguration(options: CliOptions): Promise<PlaywrightCoverCo
     config.pageUrls = options['pageUrl'];
   }
 
-  // Only override webServer if the user explicitly set it to true
-  if (options['web-server'] === true) {
+  // Only override webServer if the user explicitly set it
+  // User can explicitly disable auto-detected web server with --no-web-server
+  if (options['web-server'] !== undefined) {
     config.webServer = options['web-server'];
   }
 
@@ -306,7 +309,7 @@ function getDefaultConfig(): PlaywrightCoverConfig {
     staticAnalysis: true,
     runtimeTracking: false,
     pageUrls: [],
-    webServer: false
+    webServer: undefined
   };
 }
 

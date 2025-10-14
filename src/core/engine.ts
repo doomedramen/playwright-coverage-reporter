@@ -151,8 +151,33 @@ export class PlaywrightCoverEngine {
           const page = await context.newPage();
           await this.setupPage(page);
 
-          // Navigate to the page
-          await page.goto(url, { waitUntil: 'networkidle' });
+          // Check if page loads successfully
+          const pageLoadResult = await this.checkPageLoad(page, url);
+          if (!pageLoadResult.success) {
+            console.warn(`⚠️ Page ${url} failed to load: ${pageLoadResult.error}`);
+
+            // Create a failed page coverage entry
+            pageCoverages.push({
+              url,
+              elements: [],
+              coverage: {
+                totalElements: 0,
+                coveredElements: 0,
+                uncoveredElements: [],
+                coveragePercentage: 0,
+                coverageByType: {} as Record<string, number>,
+                elementsByPage: {
+                  [url]: {
+                    total: 0,
+                    covered: 0,
+                    elements: []
+                  }
+                }
+              }
+            });
+            await page.close();
+            continue;
+          }
 
           // Discover elements
           const discoveredElements = await this.elementDiscoverer.discoverElements(page);
@@ -161,7 +186,11 @@ export class PlaywrightCoverEngine {
           // Filter out ignored elements
           const filteredElements = this.filterIgnoredElements(processedElements);
 
-          console.log(`✅ Found ${filteredElements.length} interactive elements on ${url}`);
+          if (filteredElements.length === 0) {
+            console.warn(`⚠️ No interactive elements found on ${url} - page may have loaded but no interactive content detected`);
+          } else {
+            console.log(`✅ Found ${filteredElements.length} interactive elements on ${url}`);
+          }
 
           pageCoverages.push({
             url,
@@ -186,6 +215,26 @@ export class PlaywrightCoverEngine {
 
         } catch (error) {
           console.warn(`⚠️ Failed to analyze ${url}: ${error}`);
+
+          // Add failed page coverage entry
+          pageCoverages.push({
+            url,
+            elements: [],
+            coverage: {
+              totalElements: 0,
+              coveredElements: 0,
+              uncoveredElements: [],
+              coveragePercentage: 0,
+              coverageByType: {} as Record<string, number>,
+              elementsByPage: {
+                [url]: {
+                  total: 0,
+                  covered: 0,
+                  elements: []
+                }
+              }
+            }
+          });
         }
       }
 
@@ -283,16 +332,74 @@ export class PlaywrightCoverEngine {
   }
 
   /**
+   * Check if a page loads successfully and return the result
+   */
+  private async checkPageLoad(page: Page, url: string): Promise<{ success: boolean; error?: string }> {
+    try {
+      // Navigate to the page with timeout
+      const response = await page.goto(url, {
+        waitUntil: 'networkidle',
+        timeout: 30000
+      });
+
+      if (!response) {
+        return { success: false, error: 'No response received' };
+      }
+
+      const status = response.status();
+
+      if (status >= 400) {
+        let errorType = 'Unknown error';
+        if (status >= 500) {
+          errorType = 'Server error (500)';
+        } else if (status >= 400) {
+          errorType = 'Client error (4xx)';
+        }
+
+        return {
+          success: false,
+          error: `${errorType}: HTTP ${status}`
+        };
+      }
+
+      // Check if page actually loaded (has content)
+      const title = await page.title();
+      if (!title || title === '') {
+        // Try waiting a bit more for dynamic content
+        await page.waitForTimeout(2000);
+      }
+
+      return { success: true };
+
+    } catch (error: any) {
+      if (error.name === 'TimeoutError') {
+        return { success: false, error: 'Page load timeout' };
+      }
+      return { success: false, error: error.message };
+    }
+  }
+
+  /**
    * Setup page with additional configurations
    */
   private async setupPage(page: Page): Promise<void> {
     // Set viewport size
     await page.setViewportSize({ width: 1280, height: 720 });
 
-    // Add console logging
+    // Add console logging with enhanced error tracking
     page.on('console', msg => {
       if (msg.type() === 'error') {
         console.warn(`Browser error on ${page.url()}: ${msg.text()}`);
+      }
+    });
+
+    // Track response errors
+    page.on('response', response => {
+      if (response.status() >= 400) {
+        console.warn(`HTTP ${response.status()} error on ${response.url()}`);
+        if (response.status() >= 500) {
+          console.error(`⚠️ Server error detected: ${response.status()} on ${response.url()} - This may affect coverage analysis`);
+        }
       }
     });
 

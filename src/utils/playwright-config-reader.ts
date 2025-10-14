@@ -47,13 +47,11 @@ export class PlaywrightConfigReader {
         if (fs.existsSync(configPath)) {
           console.log(`📋 Loading Playwright configuration from ${configPath}`);
 
-          // Clear require cache to ensure fresh load
-          delete require.cache[require.resolve(configPath)];
-
-          const configModule = require(configPath);
-          const config = configModule.default || configModule;
-
-          return config as PlaywrightConfig;
+          // Handle different file types
+          const config = await this.loadConfigFile(configPath);
+          if (config) {
+            return config as PlaywrightConfig;
+          }
         }
       } catch (error) {
         console.warn(`⚠️ Failed to load Playwright config from ${configPath}:`, error);
@@ -62,6 +60,70 @@ export class PlaywrightConfigReader {
     }
 
     return null;
+  }
+
+  /**
+   * Load a specific config file, handling different module types
+   */
+  private async loadConfigFile(configPath: string): Promise<any> {
+    const path = require('path');
+
+    // Clear require cache to ensure fresh load
+    try {
+      delete require.cache[require.resolve(configPath)];
+    } catch {
+      // Module might not be cached yet, ignore error
+    }
+
+    // Handle different file extensions
+    if (configPath.endsWith('.ts')) {
+      return this.loadTypeScriptConfig(configPath);
+    } else if (configPath.endsWith('.mjs')) {
+      return this.loadESModuleConfig(configPath);
+    } else {
+      // CommonJS (.js)
+      const configModule = require(configPath);
+      return configModule.default || configModule;
+    }
+  }
+
+  /**
+   * Load TypeScript config using dynamic import
+   */
+  private async loadTypeScriptConfig(configPath: string): Promise<any> {
+    const path = require('path');
+
+    try {
+      // Try to use dynamic import for ES modules/TypeScript
+      const moduleUrl = `file://${path.resolve(configPath)}`;
+      const configModule = await import(moduleUrl);
+      return configModule.default || configModule;
+    } catch (error) {
+      // Fallback: try transpiling with ts-node if available
+      try {
+        const tsNode = require('ts-node');
+        tsNode.register();
+        const configModule = require(configPath);
+        return configModule.default || configModule;
+      } catch (tsNodeError) {
+        throw new Error(`TypeScript config loading failed. Please install ts-node or convert to CommonJS: ${error.message}`);
+      }
+    }
+  }
+
+  /**
+   * Load ES module config
+   */
+  private async loadESModuleConfig(configPath: string): Promise<any> {
+    const path = require('path');
+
+    try {
+      const moduleUrl = `file://${path.resolve(configPath)}`;
+      const configModule = await import(moduleUrl);
+      return configModule.default || configModule;
+    } catch (error) {
+      throw new Error(`ES module loading failed: ${error.message}`);
+    }
   }
 
   /**
@@ -159,19 +221,18 @@ export class PlaywrightConfigReader {
       merged.exclude = testPatterns.exclude;
     }
 
-    // Extract web server configuration
-    if (playwrightConfig.webServer && !coverageConfig.webServer) {
+    // Automatically enable web server if found in Playwright config
+    if (playwrightConfig.webServer) {
+      console.log('🚀 Found web server configuration in Playwright config, auto-enabling dev server...');
+
       if (Array.isArray(playwrightConfig.webServer)) {
         // Use the first web server if multiple are configured
         merged.webServer = playwrightConfig.webServer[0];
+        console.log(`📋 Using web server: ${playwrightConfig.webServer[0].command}`);
       } else {
         merged.webServer = playwrightConfig.webServer;
+        console.log(`📋 Using web server: ${playwrightConfig.webServer.command}`);
       }
-    }
-
-    // Also set the webServer flag to true if we found a web server config
-    if (playwrightConfig.webServer && merged.webServer === undefined) {
-      merged.webServer = true;
     }
 
     return merged;

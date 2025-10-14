@@ -20,7 +20,8 @@ Playwright Coverage Reporter helps you ensure your E2E tests are thoroughly test
 - 🏗️ **TypeScript Support**: Full TypeScript support with comprehensive type definitions
 - 🎛️ **Flexible Configuration**: Extensive configuration options for different project needs
 - 🌐 **Multi-Page Support**: Analyze coverage across multiple pages and web applications
-- 🚀 **Dev Server Integration**: Automatically start dev servers from Playwright config
+- 🚀 **Zero Configuration**: Automatically uses Playwright config and starts dev servers
+- 🔄 **Smart Dev Server Integration**: Auto-detects and starts dev servers from Playwright config
 
 ## 🚀 Quick Start
 
@@ -89,7 +90,8 @@ npx playwright-coverage analyze [options]
 - `-t, --threshold <percentage>` - Coverage threshold (default: 80)
 - `-v, --verbose` - Verbose output
 - `--page-url <urls...>` - Page URLs to analyze
-- `--web-server` - Start dev server automatically from Playwright config
+- `--web-server` - Force start dev server from Playwright config
+- `--no-web-server` - Disable automatic dev server startup
 - `--playwright-config <path>` - Path to Playwright config file (default: `playwright.config.js`)
 
 #### `mismatch`
@@ -105,7 +107,8 @@ npx playwright-coverage mismatch [options]
 - `-e, --exclude <patterns...>` - Exclude file patterns
 - `-v, --verbose` - Verbose output
 - `--page-url <urls...>` - Page URLs to analyze
-- `--web-server` - Start dev server automatically from Playwright config
+- `--web-server` - Force start dev server from Playwright config
+- `--no-web-server` - Disable automatic dev server startup
 - `--playwright-config <path>` - Path to Playwright config file (default: `playwright.config.js`)
 
 The `mismatch` command helps identify why your test selectors aren't matching actual page elements, providing specific recommendations for improving test coverage.
@@ -189,21 +192,30 @@ The tool can automatically start your development server before running coverage
 
 ### Automatic Dev Server
 
-**Command Line:**
+**🚀 Zero Configuration (Recommended):**
 ```bash
-# Automatically start dev server from Playwright config
-npx playwright-coverage analyze --web-server
+# Automatically starts dev server if found in Playwright config
+npx playwright-coverage analyze
 
 # Use custom Playwright config path
-npx playwright-coverage analyze --web-server --playwright-config configs/playwright.dev.js
+npx playwright-coverage analyze --playwright-config configs/playwright.dev.js
+
+# Explicitly disable auto-start (if server is already running)
+npx playwright-coverage analyze --no-web-server
+```
+
+**Manual Control:**
+```bash
+# Force start dev server even if not in Playwright config
+npx playwright-coverage analyze --web-server
+
+# Explicitly disable automatic server startup
+npx playwright-coverage analyze --no-web-server
 ```
 
 **Configuration:**
 ```javascript
 module.exports = {
-  // Auto-start dev server from Playwright config
-  webServer: true,
-
   // Custom Playwright config path (optional)
   playwrightConfigPath: 'playwright.config.js',
 
@@ -214,11 +226,14 @@ module.exports = {
 
 ### How It Works
 
-1. **Discovers Server Config**: Reads your `playwright.config.js` file to find `webServer` configuration
-2. **Starts Server**: Launches your dev server using the same command Playwright uses
-3. **Waits for Ready**: Checks that the server is responding before proceeding
-4. **Runs Analysis**: Performs coverage analysis on the running server
-5. **Cleanup**: Automatically stops the server when analysis completes
+1. **Auto-Detects Playwright Config**: Automatically reads your `playwright.config.js` file
+2. **Extracts Patterns**: Pulls test directories, patterns, and server configuration
+3. **Starts Server Automatically**: If `webServer` is configured, launches it using the same command Playwright uses
+4. **Waits for Ready**: Checks that the server is responding before proceeding
+5. **Runs Analysis**: Performs coverage analysis on the running server
+6. **Cleanup**: Automatically stops the server when analysis completes
+
+> 💡 **Smart Behavior**: The tool automatically enables dev server startup when it finds `webServer` configuration in your Playwright config. Use `--no-web-server` to disable this behavior.
 
 ### Playwright Web Server Configuration
 

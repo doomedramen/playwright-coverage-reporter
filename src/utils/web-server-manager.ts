@@ -59,45 +59,48 @@ export class WebServerManager {
    * Start a web server before running analysis
    */
   async startWebServer(config: WebServerConfig, serverId: string = 'default'): Promise<WebServerStatus> {
-    const url = config.url || `http://localhost:${config.port || 3000}`;
+    const expectedUrl = config.url || `http://localhost:${config.port || 3000}`;
     const reuseExisting = config.reuseExistingServer !== false; // default to true
     const timeout = config.timeout || 30000;
 
-    console.log(`🚀 Starting web server for ${url}...`);
+    console.log(`🚀 Starting web server for ${expectedUrl}...`);
 
     // Check if server is already running (if reuseExisting is true)
-    if (reuseExisting && await this.isServerRunning(url)) {
-      console.log(`✅ Server already running at ${url}`);
-      const status: WebServerStatus = {
-        running: true,
-        url,
-        startedByTool: false
-      };
-      this.serverStatuses.set(serverId, status);
-      return status;
+    if (reuseExisting) {
+      const actualUrl = await this.findRunningServer(expectedUrl, timeout);
+      if (actualUrl) {
+        console.log(`✅ Server already running at ${actualUrl}`);
+        const status: WebServerStatus = {
+          running: true,
+          url: actualUrl,
+          startedByTool: false
+        };
+        this.serverStatuses.set(serverId, status);
+        return status;
+      }
     }
 
     // Start new server process
     try {
-      const serverProcess = this.spawnServerProcess(config, url);
+      const serverProcess = this.spawnServerProcess(config, expectedUrl);
       this.serverProcesses.set(serverId, serverProcess);
 
-      // Wait for server to be ready
-      await this.waitForServer(url, timeout);
+      // Wait for server to be ready and detect actual URL
+      const actualUrl = await this.waitForServerAndDetectUrl(expectedUrl, config, timeout);
 
       const status: WebServerStatus = {
         running: true,
         process: serverProcess,
-        url,
+        url: actualUrl,
         startedByTool: true
       };
       this.serverStatuses.set(serverId, status);
 
-      console.log(`✅ Server started successfully at ${url}`);
+      console.log(`✅ Server started successfully at ${actualUrl}`);
       return status;
 
     } catch (error) {
-      console.error(`❌ Failed to start server at ${url}:`, error);
+      console.error(`❌ Failed to start server for ${expectedUrl}:`, error);
       throw error;
     }
   }
@@ -137,6 +140,32 @@ export class WebServerManager {
   async stopAllServers(): Promise<void> {
     const serverIds = Array.from(this.serverStatuses.keys());
     await Promise.all(serverIds.map(id => this.stopWebServer(id)));
+  }
+
+  /**
+   * Find a running server, checking nearby ports if the expected port is busy
+   */
+  private async findRunningServer(expectedUrl: string, timeout: number = 3000): Promise<string | null> {
+    const url = new URL(expectedUrl);
+    const expectedPort = parseInt(url.port) || 3000;
+
+    // First check the expected URL
+    if (await this.isServerRunning(expectedUrl)) {
+      return expectedUrl;
+    }
+
+    // Check nearby ports (common fallback ports)
+    const fallbackPorts = [expectedPort + 1, expectedPort + 2, 3001, 3002, 8000, 8001, 8080, 8081];
+
+    for (const port of fallbackPorts) {
+      const testUrl = `${url.protocol}//${url.hostname}:${port}`;
+      if (await this.isServerRunning(testUrl)) {
+        console.log(`🔍 Found server running on alternate port ${port}`);
+        return testUrl;
+      }
+    }
+
+    return null;
   }
 
   /**
@@ -195,7 +224,47 @@ export class WebServerManager {
   }
 
   /**
-   * Wait for server to be ready
+   * Wait for server to be ready and detect actual URL (for port changes)
+   */
+  private async waitForServerAndDetectUrl(expectedUrl: string, config: WebServerConfig, timeout: number): Promise<string> {
+    const startTime = Date.now();
+    const maxTime = startTime + timeout;
+
+    // Monitor server output for port information
+    let detectedPort: number | null = null;
+
+    if (config.port) {
+      // Start by checking the configured port
+      const configuredUrl = `http://localhost:${config.port}`;
+      if (await this.isServerRunning(configuredUrl)) {
+        return configuredUrl;
+      }
+    }
+
+    while (Date.now() < maxTime) {
+      // First check the expected URL
+      if (await this.isServerRunning(expectedUrl)) {
+        return expectedUrl;
+      }
+
+      // Then check fallback ports (for servers that change ports dynamically)
+      const fallbackPorts = [3001, 3002, 3003, 8000, 8001, 8080, 8081];
+      for (const port of fallbackPorts) {
+        const testUrl = `http://localhost:${port}`;
+        if (await this.isServerRunning(testUrl)) {
+          console.log(`🔍 Server started on alternate port ${port}`);
+          return testUrl;
+        }
+      }
+
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+
+    throw new Error(`Server did not become available at ${expectedUrl} or fallback ports within ${timeout}ms`);
+  }
+
+  /**
+   * Wait for server to be ready (legacy method for compatibility)
    */
   private async waitForServer(url: string, timeout: number): Promise<void> {
     const startTime = Date.now();

@@ -12,7 +12,11 @@ build/
 # Coverage reports
 coverage/
 coverage-report/
+demo-report/
 *.lcov
+
+# Generated demo files (but keep examples)
+demo/
 
 # Environment variables
 .env

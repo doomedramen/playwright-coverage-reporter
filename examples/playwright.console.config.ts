@@ -1,8 +1,7 @@
-import { defineConfig, devices } from '@playwright/test';
+import { defineConfig } from '@playwright/test';
 import { PlaywrightCoverageReporter, CoveragePresets } from 'playwright-coverage-reporter';
 
 export default defineConfig({
-  // Your existing Playwright configuration
   testDir: './tests',
   fullyParallel: true,
   forbidOnly: !!process.env.CI,
@@ -10,23 +9,22 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
   reporter: [
     ['html'], // Playwright HTML reporter
-    ['json', { outputFile: 'test-results.json' }], // Playwright JSON reporter
-    // Coverage reporter configuration
+    ['json', { outputFile: 'test-results.json' }],
+    // Console-only coverage configuration for immediate feedback
     [
       PlaywrightCoverageReporter,
       CoveragePresets.basic({
-        outputPath: './coverage-report',
-        format: 'console', // Generate console coverage report
+        format: 'console', // Show coverage report in console
         threshold: 80,
-        verbose: true,
+        verbose: true, // Show detailed information
         elementDiscovery: true,
         pageUrls: [
-          'http://localhost:3000', // Your app's development URL
+          'http://localhost:3000', // Your app's URL
           'http://localhost:3000/login',
           'http://localhost:3000/dashboard'
         ],
         runtimeDiscovery: true, // Discover elements during test execution
-        captureScreenshots: false // Set to true to capture screenshots of uncovered elements
+        captureScreenshots: false // No screenshots needed for console output
       })
     ]
   ],
@@ -44,23 +42,6 @@ export default defineConfig({
     {
       name: 'chromium',
       use: { ...devices['Desktop Chrome'] },
-    },
-    {
-      name: 'firefox',
-      use: { ...devices['Desktop Firefox'] },
-    },
-    {
-      name: 'webkit',
-      use: { ...devices['Desktop Safari'] },
-    },
-    // Mobile configurations
-    {
-      name: 'Mobile Chrome',
-      use: { ...devices['Pixel 5'] },
-    },
-    {
-      name: 'Mobile Safari',
-      use: { ...devices['iPhone 12'] },
     },
   ],
 });

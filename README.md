@@ -87,7 +87,8 @@ npx playwright test
 
 3. **View the coverage report**:
 ```bash
-open coverage-report/index.html
+# Console output appears automatically during test execution
+# For HTML report: open coverage-report/index.html
 ```
 
 ##### Manual Configuration
@@ -106,7 +107,7 @@ export default defineConfig({
       PlaywrightCoverageReporter,
       {
         outputPath: './coverage-report',
-        format: 'html',
+        format: 'console',
         threshold: 80,
         verbose: true,
         elementDiscovery: true,

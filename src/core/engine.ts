@@ -3,6 +3,7 @@ import { StaticAnalyzer } from '../analyzers/static-analyzer';
 import { ElementDiscoverer } from '../utils/element-discoverer';
 import { CoverageCalculator } from '../utils/coverage-calculator';
 import { CoverageReporter } from '../reporters/coverage-reporter';
+import { SelectorAnalyzer, SelectorAnalysisReport } from '../utils/selector-analyzer';
 import { PlaywrightCoverConfig, CoverageReport, PageCoverage, TestSelector, PageElement } from '../types';
 
 export class PlaywrightCoverEngine {
@@ -11,6 +12,7 @@ export class PlaywrightCoverEngine {
   private elementDiscoverer: ElementDiscoverer;
   private coverageCalculator: CoverageCalculator;
   private coverageReporter: CoverageReporter;
+  private selectorAnalyzer: SelectorAnalyzer;
 
   constructor(config: PlaywrightCoverConfig) {
     this.config = config;
@@ -23,6 +25,7 @@ export class PlaywrightCoverEngine {
       threshold: config.coverageThreshold,
       verbose: true
     });
+    this.selectorAnalyzer = new SelectorAnalyzer();
   }
 
   /**
@@ -372,6 +375,76 @@ export class PlaywrightCoverEngine {
     // This would integrate with Playwright test runner
     // For now, delegate to static analysis
     return this.analyzeCoverage();
+  }
+
+  /**
+   * Analyze selector mismatches between tests and actual page elements
+   */
+  async analyzeSelectorMismatches(): Promise<SelectorAnalysisReport> {
+    console.log('🔍 Analyzing selector mismatches...');
+
+    // Get test selectors and page elements
+    const testResult = await this.performStaticAnalysis();
+    const pageCoverages = await this.discoverPageElements();
+
+    // Flatten all page elements
+    const allPageElements: PageElement[] = [];
+    pageCoverages.forEach(pageCoverage => {
+      allPageElements.push(...pageCoverage.elements);
+    });
+
+    // Analyze mismatches
+    const analysis = this.selectorAnalyzer.analyzeSelectorMismatch(
+      testResult.selectors,
+      allPageElements
+    );
+
+    // Display results
+    console.log('\n📊 Selector Mismatch Analysis:');
+    console.log(`Total selectors in tests: ${analysis.totalSelectors}`);
+    console.log(`Selectors that match elements: ${analysis.matchedSelectors}`);
+    console.log(`Selectors with no matches: ${analysis.unmatchedSelectors}`);
+
+    if (analysis.unmatchedSelectors > 0) {
+      console.log('\n❌ Common Mismatch Issues:');
+      const typeCounts = this.getMismatchTypeCounts(analysis.mismatches);
+      Object.entries(typeCounts).forEach(([type, count]) => {
+        if (count > 0) {
+          console.log(`  ${type}: ${count} failing selectors`);
+        }
+      });
+
+      console.log('\n🔍 Sample Mismatches:');
+      analysis.mismatches.slice(0, 5).forEach(mismatch => {
+        console.log(`  • ${mismatch.testSelector.raw} (${mismatch.testSelector.type})`);
+        console.log(`    Reason: ${mismatch.reason}`);
+        if (mismatch.possibleMatches.length > 0) {
+          console.log(`    Possible matches: ${mismatch.possibleMatches.length} similar elements`);
+        }
+        console.log('');
+      });
+    }
+
+    console.log('\n💡 Recommendations:');
+    analysis.recommendations.forEach(rec => {
+      console.log(`  • ${rec}`);
+    });
+
+    return analysis;
+  }
+
+  /**
+   * Get mismatch counts by selector type
+   */
+  private getMismatchTypeCounts(mismatches: any[]): Record<string, number> {
+    const counts: Record<string, number> = {};
+
+    mismatches.forEach(mismatch => {
+      const type = mismatch.testSelector.type;
+      counts[type] = (counts[type] || 0) + 1;
+    });
+
+    return counts;
   }
 
   /**

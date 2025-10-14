@@ -131,6 +131,36 @@ program
   });
 
 program
+  .command('mismatch')
+  .description('Analyze selector mismatches between tests and page elements')
+  .option('-c, --config <path>', 'Path to configuration file')
+  .option('-i, --include <patterns...>', 'Include file patterns (default: ["**/*.spec.ts", "**/*.test.ts"])')
+  .option('-e, --exclude <patterns...>', 'Exclude file patterns (default: ["node_modules/**", "dist/**"])')
+  .option('-v, --verbose', 'Verbose output')
+  .option('--page-url <urls...>', 'Page URLs to analyze')
+  .action(async (options: CliOptions) => {
+    try {
+      const config = await loadConfiguration(options);
+      const engine = new PlaywrightCoverEngine(config);
+
+      console.log('🔍 Starting Playwright selector mismatch analysis...');
+
+      if (options.verbose) {
+        console.log('CLI Options:', JSON.stringify(options, null, 2));
+        console.log('Configuration:', config);
+      }
+
+      await engine.analyzeSelectorMismatches();
+
+      console.log('✅ Mismatch analysis complete!');
+
+    } catch (error) {
+      console.error('❌ Mismatch analysis failed:', error);
+      process.exit(1);
+    }
+  });
+
+program
   .command('demo')
   .description('Run a demo of the coverage tool')
   .option('-o, --output <path>', 'Output directory (default: ./demo-report)')

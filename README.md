@@ -184,7 +184,72 @@ export default defineConfig({
 - **📱 Multi-browser Support**: Works across all Playwright browsers
 - **🚀 Zero Setup**: Works out of the box with existing Playwright configs
 
-#### Legacy Standalone Approach
+#### Custom Fixtures Approach
+
+For maximum control and element discovery during test execution, you can use the custom fixtures approach.
+
+#### Setup
+
+1. **Create tests using the coverage fixture**:
+```typescript
+import { test, expect } from 'playwright-coverage-reporter/fixtures';
+
+// Your tests will automatically have element discovery and interaction tracking
+test('user flow with coverage tracking', async ({ page, trackInteraction }) => {
+  await page.goto('/login');
+
+  // Track interactions automatically
+  await trackInteraction('#email', 'fill');
+  await page.fill('#email', 'user@example.com');
+
+  await trackInteraction('#password', 'fill');
+  await page.fill('#password', 'password');
+
+  await trackInteraction('button[type="submit"]', 'click');
+  await page.click('button[type="submit"]');
+
+  await expect(page.locator('[data-testid="dashboard"]')).toBeVisible();
+});
+```
+
+2. **Configure coverage options in playwright.config.ts**:
+```typescript
+import { defineConfig } from '@playwright/test';
+import { PlaywrightCoverageReporter } from 'playwright-coverage-reporter';
+
+export default defineConfig({
+  reporter: [
+    ['html'],
+    [PlaywrightCoverageReporter, {
+      threshold: 80,
+      outputPath: './coverage-report',
+      elementDiscovery: true,  // Enable automatic element discovery
+      runtimeDiscovery: true, // Track interactions during tests
+      verbose: true
+    }]
+  ],
+
+  // Configure coverage fixtures
+  coverageOptions: {
+    outputPath: './coverage-report',
+    threshold: 80,
+    verbose: true,
+    elementDiscovery: true,
+    runtimeDiscovery: true,
+    captureScreenshots: false
+  }
+});
+```
+
+#### Features
+
+- **🔍 Automatic Element Discovery**: Elements are discovered automatically when pages load
+- **📊 Interaction Tracking**: All interactions are tracked with stack trace analysis
+- **🎯 Coverage Options**: Configurable via Playwright config or fixtures
+- **⚡ Zero Overhead**: Minimal performance impact during test execution
+- **📱 Multi-browser**: Works across all Playwright browsers
+
+### Legacy Standalone Approach
 
 1. **Initialize configuration**:
 ```bash

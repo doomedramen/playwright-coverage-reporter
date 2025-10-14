@@ -1,186 +1,38 @@
-import { test as base, type Page, type Locator } from '@playwright/test';
+import { test as base, type Page, type Locator, TestInfo } from '@playwright/test';
 import { PageElement, TestSelector, SelectorType, ElementType } from '../types';
+
+export interface CoverageOptions {
+  outputPath?: string;
+  threshold?: number;
+  verbose?: boolean;
+  elementDiscovery?: boolean;
+  runtimeDiscovery?: boolean;
+  captureScreenshots?: boolean;
+}
+
+export interface CoverageData {
+  discoveredElements: PageElement[];
+  testedSelectors: TestSelector[];
+  pageUrl?: string;
+}
 
 export interface CoverageFixture {
   page: Page;
-  trackInteraction: (selector: string, action: string) => Promise<void>;
+  trackInteraction: (selector: string, action?: string) => Promise<void>;
   getCoveredElements: () => TestSelector[];
-  startCoverageTracking: () => void;
-  stopCoverageTracking: () => Promise<PageElement[]>;
+  coverageOptions: CoverageOptions;
 }
 
+// Global coverage data store (shared across tests)
+const globalCoverageData = new Map<string, CoverageData>();
+
 class CoverageTracker {
-  private coveredSelectors: TestSelector[] = [];
-  private isTracking = false;
-  private originalGoto: Page['goto'];
-  private originalClick: Page['click'];
-  private originalFill: Page['fill'];
-  private originalType: Page['type'];
-  private originalCheck: Page['check'];
-  private originalUncheck: Page['uncheck'];
-  private originalSelectOption: Page['selectOption'];
+  public coveredSelectors: TestSelector[] = [];
+  public discoveredElements: PageElement[] = [];
   private page?: Page;
 
-  constructor() {
-    this.interceptPageMethods = this.interceptPageMethods.bind(this);
-  }
-
-  startTracking(page: Page) {
+  async discoverPageElements(page: Page): Promise<PageElement[]> {
     this.page = page;
-    this.isTracking = true;
-    this.interceptPageMethods(page);
-  }
-
-  stopTracking() {
-    this.isTracking = false;
-    this.restorePageMethods();
-  }
-
-  private interceptPageMethods(page: Page) {
-    // Store original methods
-    this.originalGoto = page.goto.bind(page);
-    this.originalClick = page.click.bind(page);
-    this.originalFill = page.fill.bind(page);
-    this.originalType = page.type.bind(page);
-    this.originalCheck = page.check.bind(page);
-    this.originalUncheck = page.uncheck.bind(page);
-    this.originalSelectOption = page.selectOption.bind(page);
-
-    // Intercept page.goto to discover elements on page load
-    page.goto = async (...args) => {
-      const result = await this.originalGoto(...args);
-      if (this.isTracking) {
-        await this.discoverPageElements(page);
-      }
-      return result;
-    };
-
-    // Intercept click operations
-    page.click = async (selector, options) => {
-      await this.trackSelector(selector, 'click');
-      return this.originalClick(selector, options);
-    };
-
-    // Intercept fill operations
-    page.fill = async (selector, value, options) => {
-      await this.trackSelector(selector, 'fill');
-      return this.originalFill(selector, value, options);
-    };
-
-    // Intercept type operations
-    page.type = async (selector, value, options) => {
-      await this.trackSelector(selector, 'type');
-      return this.originalType(selector, value, options);
-    };
-
-    // Intercept check operations
-    page.check = async (selector, options) => {
-      await this.trackSelector(selector, 'check');
-      return this.originalCheck(selector, options);
-    };
-
-    // Intercept uncheck operations
-    page.uncheck = async (selector, options) => {
-      await this.trackSelector(selector, 'uncheck');
-      return this.originalUncheck(selector, options);
-    };
-
-    // Intercept select operations
-    page.selectOption = async (selector, values, options) => {
-      await this.trackSelector(selector, 'selectOption');
-      return this.originalSelectOption(selector, values, options);
-    };
-  }
-
-  private restorePageMethods() {
-    if (this.page) {
-      this.page.goto = this.originalGoto;
-      this.page.click = this.originalClick;
-      this.page.fill = this.originalFill;
-      this.page.type = this.originalType;
-      this.page.check = this.originalCheck;
-      this.page.uncheck = this.originalUncheck;
-      this.page.selectOption = this.originalSelectOption;
-    }
-  }
-
-  private async trackSelector(selector: string, action: string) {
-    if (!this.isTracking || !this.page) return;
-
-    // Generate stack trace to get calling location
-    const stack = new Error().stack;
-    let lineNumber = 0;
-    let filePath = '';
-    let context = '';
-
-    if (stack) {
-      const lines = stack.split('\n');
-      // Look for the test file in the stack trace
-      for (const line of lines) {
-        if (line.includes('.spec.ts') || line.includes('.test.ts') || line.includes('.e2e.ts')) {
-          const match = line.match(/at\s+.*?\s+\((.*?):(\d+):\d+\)/);
-          if (match) {
-            filePath = match[1];
-            lineNumber = parseInt(match[2], 10);
-            break;
-          }
-        }
-      }
-    }
-
-    const normalizedSelector = this.normalizeSelector(selector);
-    const selectorType = this.determineSelectorType(selector);
-
-    const testSelector: TestSelector = {
-      raw: selector,
-      normalized: normalizedSelector,
-      type: selectorType,
-      lineNumber,
-      filePath,
-      context: action
-    };
-
-    // Avoid duplicates
-    const exists = this.coveredSelectors.some(s =>
-      s.normalized === normalizedSelector && s.filePath === filePath
-    );
-
-    if (!exists) {
-      this.coveredSelectors.push(testSelector);
-    }
-  }
-
-  private normalizeSelector(selector: string): string {
-    // Remove text content from quotes for normalization
-    return selector.replace(/=["'][^"']*["']/g, '="..."');
-  }
-
-  private determineSelectorType(selector: string): SelectorType {
-    if (selector.startsWith('//') || selector.startsWith('(')) {
-      return SelectorType.XPATH;
-    }
-    if (selector.startsWith('text=')) {
-      return SelectorType.TEXT;
-    }
-    if (selector.startsWith('role=')) {
-      return SelectorType.ROLE;
-    }
-    if (selector.startsWith('data-testid') || selector.includes('[test-id]')) {
-      return SelectorType.TEST_ID;
-    }
-    if (selector.startsWith('alt=')) {
-      return SelectorType.ALT_TEXT;
-    }
-    if (selector.startsWith('placeholder=')) {
-      return SelectorType.PLACEHOLDER;
-    }
-    if (selector.startsWith('label=')) {
-      return SelectorType.LABEL;
-    }
-    return SelectorType.CSS;
-  }
-
-  private async discoverPageElements(page: Page): Promise<PageElement[]> {
     const elements: PageElement[] = [];
 
     // Discover interactive elements using JavaScript injection
@@ -312,10 +164,11 @@ class CoverageTracker {
       });
     });
 
+    this.discoveredElements = elements;
     return elements;
   }
 
-  private determineElementType(tagName: string, role: string): ElementType {
+  determineElementType(tagName: string, role: string): ElementType {
     const tag = tagName.toLowerCase();
 
     switch (tag) {
@@ -355,49 +208,131 @@ class CoverageTracker {
     return ElementType.CLICKABLE_ELEMENT;
   }
 
-  getCoveredSelectors(): TestSelector[] {
-    return [...this.coveredSelectors];
+  normalizeSelector(selector: string): string {
+    // Remove text content from quotes for normalization
+    return selector.replace(/=["'][^"']*["']/g, '="..."');
   }
 
-  clearCoverage() {
-    this.coveredSelectors = [];
+  determineSelectorType(selector: string): SelectorType {
+    if (selector.startsWith('//') || selector.startsWith('(')) {
+      return SelectorType.XPATH;
+    }
+    if (selector.startsWith('text=')) {
+      return SelectorType.TEXT;
+    }
+    if (selector.startsWith('role=')) {
+      return SelectorType.ROLE;
+    }
+    if (selector.startsWith('data-testid') || selector.includes('[test-id]')) {
+      return SelectorType.TEST_ID;
+    }
+    if (selector.startsWith('alt=')) {
+      return SelectorType.ALT_TEXT;
+    }
+    if (selector.startsWith('placeholder=')) {
+      return SelectorType.PLACEHOLDER;
+    }
+    if (selector.startsWith('label=')) {
+      return SelectorType.LABEL;
+    }
+    return SelectorType.CSS;
   }
 }
 
-// Create the coverage fixture
+// Create the proper coverage fixture using test.extend
 export const test = base.extend<CoverageFixture>({
-  page: async ({ page }, use) => {
-    // This will be handled by the coverage fixture
+  // Coverage options that can be configured in playwright.config.ts
+  coverageOptions: [{
+    outputPath: './coverage-report',
+    threshold: 80,
+    verbose: false,
+    elementDiscovery: true,
+    runtimeDiscovery: false,
+    captureScreenshots: false
+  }, { option: true }],
+
+  // Page fixture with automatic tracking
+  page: async ({ page, coverageOptions }, use) => {
+    const tracker = new CoverageTracker();
+
+    // Auto-discover elements on page load if enabled
+    if (coverageOptions.elementDiscovery) {
+      page.on('load', async () => {
+        const elements = await tracker.discoverPageElements(page);
+
+        if (coverageOptions.verbose) {
+          console.log(`🔍 Discovered ${elements.length} elements on ${page.url()}`);
+        }
+      });
+    }
+
     await use(page);
   },
 
-  trackInteraction: async ({}, use) => {
+  // Track interaction fixture
+  trackInteraction: async ({ page, coverageOptions }, use) => {
     const tracker = new CoverageTracker();
-    await use(async (selector: string, action: string) => {
-      await tracker['trackSelector'](selector, action);
+
+    await use(async (selector: string, action = 'click') => {
+      const stack = new Error().stack;
+      let lineNumber = 0;
+      let filePath = '';
+
+      if (stack) {
+        const lines = stack.split('\n');
+        for (const line of lines) {
+          if (line.includes('.spec.ts') || line.includes('.test.ts')) {
+            const match = line.match(/at\s+.*?\s+\((.*?):(\d+):\d+\)/);
+            if (match) {
+              filePath = match[1];
+              lineNumber = parseInt(match[2], 10);
+              break;
+            }
+          }
+        }
+      }
+
+      const normalizedSelector = tracker.normalizeSelector(selector);
+      const selectorType = tracker.determineSelectorType(selector);
+
+      const testSelector: TestSelector = {
+        raw: selector,
+        normalized: normalizedSelector,
+        type: selectorType,
+        lineNumber,
+        filePath,
+        context: action
+      };
+
+      // Avoid duplicates
+      const exists = tracker.coveredSelectors.some(s =>
+        s.normalized === normalizedSelector && s.filePath === filePath
+      );
+
+      if (!exists) {
+        tracker.coveredSelectors.push(testSelector);
+      }
+
+      if (coverageOptions.verbose) {
+        console.log(`🎯 Recorded interaction: ${action} -> ${selector}`);
+      }
     });
   },
 
+  // Get covered elements fixture
   getCoveredElements: async ({}, use) => {
     const tracker = new CoverageTracker();
-    await use(() => tracker.getCoveredSelectors());
-  },
-
-  startCoverageTracking: async ({ page }, use) => {
-    const tracker = new CoverageTracker();
-    await use(() => {
-      tracker.startTracking(page);
-    });
-  },
-
-  stopCoverageTracking: async ({}, use) => {
-    const tracker = new CoverageTracker();
-    await use(async () => {
-      tracker.stopTracking();
-      // Return discovered elements (this would need the page instance)
-      return [];
-    });
+    await use(() => tracker.coveredSelectors);
   }
 });
+
+// Export functions for external access (e.g., from reporters)
+export function getGlobalCoverageData(): Map<string, CoverageData> {
+  return globalCoverageData;
+}
+
+export function clearCoverageData(): void {
+  globalCoverageData.clear();
+}
 
 export { expect } from '@playwright/test';

@@ -37,7 +37,12 @@ export class PlaywrightConfigReader {
 
     const possiblePaths = [
       configPath ? path.resolve(configPath) : null,
+      // Prioritize compiled JS configs
       path.resolve('playwright.config.js'),
+      path.resolve('dist/playwright.config.js'),
+      path.resolve('build/playwright.config.js'),
+      path.resolve('lib/playwright.config.js'),
+      // Then try TypeScript configs (with better error handling)
       path.resolve('playwright.config.ts'),
       path.resolve('playwright.config.mjs')
     ].filter(Boolean);
@@ -94,19 +99,47 @@ export class PlaywrightConfigReader {
     const path = require('path');
 
     try {
-      // Try to use dynamic import for ES modules/TypeScript
+      // First try to use dynamic import for ES modules/TypeScript
       const moduleUrl = `file://${path.resolve(configPath)}`;
       const configModule = await import(moduleUrl);
       return configModule.default || configModule;
     } catch (error) {
-      // Fallback: try transpiling with ts-node if available
+      // If dynamic import fails, try different approaches
       try {
+        // Try ts-node if available
         const tsNode = require('ts-node');
         tsNode.register();
         const configModule = require(configPath);
         return configModule.default || configModule;
       } catch (tsNodeError) {
-        throw new Error(`TypeScript config loading failed. Please install ts-node or convert to CommonJS: ${error.message}`);
+        // Try using the project's TypeScript compiler
+        try {
+          // Check if project has TypeScript and try to compile the config
+          const { execSync } = require('child_process');
+          const tempJsFile = configPath.replace('.ts', '.temp.config.js');
+
+          // Try to compile the single config file
+          execSync(`npx tsc ${configPath} --outDir . --target es2020 --module commonjs --skipLibCheck`, {
+            stdio: 'pipe',
+            cwd: process.cwd()
+          });
+
+          // Load the compiled config
+          const configModule = require(tempJsFile);
+
+          // Clean up temp file
+          try {
+            require('fs').unlinkSync(tempJsFile);
+          } catch {}
+
+          return configModule.default || configModule;
+        } catch (tscError) {
+          // If all approaches fail, provide helpful guidance
+          console.warn(`⚠️ Cannot load TypeScript config ${configPath}. This requires either ts-node or a compiled JS version.`);
+          console.warn(`💡 Solutions: 1) Convert to CommonJS (.js), 2) Install ts-node, or 3) Compile your TypeScript config`);
+          console.warn(`💡 The tool will continue without Playwright config integration.`);
+          return null; // Return null instead of throwing to allow analysis to continue
+        }
       }
     }
   }

@@ -105,6 +105,106 @@ export class CoverageCalculator {
   }
 
   /**
+   * Enhanced matching algorithm that considers context and fuzzy matching
+   */
+  private findBestMatchingElement(
+    testedSelector: TestSelector,
+    pageElements: PageElement[],
+    alreadyMatched: Set<PageElement>
+  ): PageElement | null {
+    const candidates = pageElements.filter(element => !alreadyMatched.has(element));
+    const matches: Array<{ element: PageElement; score: number }> = [];
+
+    // Score each candidate based on how well it matches
+    for (const element of candidates) {
+      const score = this.calculateMatchScore(testedSelector, element);
+      if (score > 0) {
+        matches.push({ element, score });
+      }
+    }
+
+    // Return the element with the highest match score
+    if (matches.length > 0) {
+      matches.sort((a, b) => b.score - a.score);
+      return matches[0].element;
+    }
+
+    return null;
+  }
+
+  /**
+   * Calculate a match score between selector and element (0-100)
+   */
+  private calculateMatchScore(testedSelector: TestSelector, element: PageElement): number {
+    let score = 0;
+    const { raw, normalized, type } = testedSelector;
+
+    // Exact match gets highest score
+    if (this.isDirectMatch(raw, element) || this.isDirectMatch(normalized, element)) {
+      score += 100;
+    }
+
+    // Type-specific matching with scoring
+    switch (type) {
+      case SelectorType.TEXT:
+        if (this.textContentMatch(raw, element)) {
+          score += 90;
+          // Bonus for exact text match
+          const textMatch = raw.match(/text=["']([^"']+)["']/);
+          if (textMatch && element.text && element.text.toLowerCase() === textMatch[1].toLowerCase()) {
+            score += 10;
+          }
+        }
+        break;
+
+      case SelectorType.ROLE:
+        if (this.roleMatch(raw, element)) {
+          score += 95;
+        }
+        break;
+
+      case SelectorType.TEST_ID:
+        if (this.testIdMatch(raw, element)) {
+          score += 95;
+        }
+        break;
+
+      case SelectorType.CSS:
+        if (this.cssMatch(raw, element)) {
+          score += 80;
+          // Bonus for more specific CSS selectors
+          if (raw.includes('#') || raw.includes('.')) {
+            score += 10;
+          }
+        }
+        break;
+
+      case SelectorType.XPATH:
+        if (this.xpathMatch(raw, element)) {
+          score += 85;
+        }
+        break;
+
+      default:
+        // Generic matching for other types
+        if (this.isDirectMatch(raw, element)) {
+          score += 70;
+        }
+        break;
+    }
+
+    // Contextual bonuses
+    if (element.discoverySource && testedSelector.filePath) {
+      // Bonus if element and selector come from similar contexts
+      if (element.discoverySource.includes(testedSelector.filePath.split('/').pop() || '')) {
+        score += 5;
+      }
+    }
+
+    return Math.min(score, 100);
+  }
+
+  /**
    * Check if a selector matches a page element
    */
   private selectorMatchesElement(selector: TestSelector, element: PageElement): boolean {
@@ -413,7 +513,11 @@ export class CoverageCalculator {
 
     if (coverage.totalElements === 0) {
       recommendations.push('Critical: No interactive elements were discovered. Check if pages are loading correctly or if element discovery is working.');
-    } else if (coverage.coveragePercentage < 50) {
+      return recommendations;
+    }
+
+    // Overall coverage recommendations
+    if (coverage.coveragePercentage < 50) {
       recommendations.push('Critical: Your test coverage is below 50%. Consider adding more E2E tests.');
     } else if (coverage.coveragePercentage < 75) {
       recommendations.push('Warning: Test coverage is below 75%. Some interactive elements may not be tested.');
@@ -427,18 +531,116 @@ export class CoverageCalculator {
     Object.entries(coverage.coverageByType).forEach(([type, percentage]) => {
       if (percentage < 50) {
         recommendations.push(`Low coverage for ${type} elements (${percentage}%). Consider adding tests for these.`);
+      } else if (percentage < 75) {
+        recommendations.push(`Moderate coverage for ${type} elements (${percentage}%). Some tests may be missing.`);
       }
     });
 
-    // Recommendations for common patterns
-    const uncoveredByType = this.groupUncoveredByType(coverage.uncoveredElements);
-    Object.entries(uncoveredByType).forEach(([type, elements]) => {
-      if (elements.length > 5) {
-        recommendations.push(`Consider testing ${elements.length} ${type} elements that are currently uncovered.`);
-      }
-    });
+    // Priority-based recommendations for uncovered elements
+    const priorityRecommendations = this.generatePriorityRecommendations(coverage.uncoveredElements);
+    recommendations.push(...priorityRecommendations);
+
+    // Test quality recommendations
+    const qualityRecommendations = this.generateQualityRecommendations(coverage);
+    recommendations.push(...qualityRecommendations);
 
     return recommendations;
+  }
+
+  /**
+   * Generate priority-based recommendations for uncovered elements
+   */
+  private generatePriorityRecommendations(uncoveredElements: PageElement[]): string[] {
+    const recommendations: string[] = [];
+
+    // Group by priority based on element type and accessibility
+    const highPriority = uncoveredElements.filter(el =>
+      el.type === ElementType.BUTTON || el.type === ElementType.INPUT || el.role === 'button'
+    );
+
+    const mediumPriority = uncoveredElements.filter(el =>
+      el.type === ElementType.SELECT || el.type === ElementType.TEXTAREA || el.role === 'link' || el.role === 'navigation'
+    );
+
+    if (highPriority.length > 0) {
+      recommendations.push(`High Priority: ${highPriority.length} critical interactive elements (buttons, inputs, links) are not covered by tests.`);
+    }
+
+    if (mediumPriority.length > 0) {
+      recommendations.push(`Medium Priority: ${mediumPriority.length} important elements (forms, navigation) are not covered by tests.`);
+    }
+
+    // Check for elements with accessible names that should be tested
+    const accessibleElements = uncoveredElements.filter(el => el.accessibleName);
+    if (accessibleElements.length > 0) {
+      recommendations.push(`${accessibleElements.length} elements have accessible names but are not tested. Consider using getByRole() or getByText() selectors.`);
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Generate recommendations about test quality and selector usage
+   */
+  private generateQualityRecommendations(coverage: CoverageResult): string[] {
+    const recommendations: string[] = [];
+
+    // Check for potential test quality issues
+    if (coverage.coveragePercentage > 95) {
+      recommendations.push('⚠️ Very high coverage detected. Ensure your tests are meaningful and not just clicking everything.');
+    }
+
+    // Check if coverage might be artificially inflated
+    const totalElements = coverage.totalElements;
+    const coveredElements = coverage.coveredElements;
+
+    if (coveredElements > 0 && totalElements > 0) {
+      const ratio = coveredElements / totalElements;
+      if (ratio > 0.9 && totalElements < 10) {
+        recommendations.push('Small number of elements detected with high coverage. Consider testing more complex user flows.');
+      }
+    }
+
+    return recommendations;
+  }
+
+  /**
+   * Generate insights about selector effectiveness
+   */
+  generateSelectorInsights(testedSelectors: TestSelector[], coverage: CoverageResult): {
+    mostEffectiveSelectors: Array<{ selector: string; type: string; usage: number }>;
+    ineffectiveSelectors: Array<{ selector: string; type: string; reason: string }>;
+    coverageBySelectorType: Record<string, { count: number; effectiveness: number }>;
+  } {
+    const insights = {
+      mostEffectiveSelectors: [] as Array<{ selector: string; type: string; usage: number }>,
+      ineffectiveSelectors: [] as Array<{ selector: string; type: string; reason: string }>,
+      coverageBySelectorType: {} as Record<string, { count: number; effectiveness: number }>
+    };
+
+    // Analyze selector usage by type
+    const selectorTypeStats: Record<string, { count: number; matched: number }> = {};
+
+    testedSelectors.forEach(selector => {
+      const type = selector.type || 'unknown';
+      if (!selectorTypeStats[type]) {
+        selectorTypeStats[type] = { count: 0, matched: 0 };
+      }
+      selectorTypeStats[type].count++;
+    });
+
+    // Calculate effectiveness (simplified - would need actual matching data)
+    Object.entries(selectorTypeStats).forEach(([type, stats]) => {
+      const effectiveness = coverage.coveragePercentage > 0 ?
+        Math.min((stats.count / testedSelectors.length) * 100, 100) : 0;
+
+      insights.coverageBySelectorType[type] = {
+        count: stats.count,
+        effectiveness
+      };
+    });
+
+    return insights;
   }
 
   private groupUncoveredByType(uncoveredElements: PageElement[]): Record<string, PageElement[]> {

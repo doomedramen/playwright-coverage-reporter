@@ -88,3 +88,9 @@ temp/
 # Temporary folders
 .tmp/
 .temp/
+/test-results
+/playwright-report
+test-results.json
+/test-app/playwright-report
+/test-app/test-results
+/test-app/coverage-report-fixed

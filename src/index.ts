@@ -7,6 +7,13 @@ export { CoverageCalculator } from './utils/coverage-calculator';
 export { CoverageReporter } from './reporters/coverage-reporter';
 export { test as coverageTest } from './fixtures/coverage-fixture';
 
+// Playwright Reporter exports
+export { PlaywrightCoverageReporter } from './reporter/coverage-reporter';
+export type { CoverageReporterOptions } from './reporter/coverage-reporter';
+
+// Configuration helper
+export * from './config/playwright-config';
+
 // Type exports
 export type {
   PlaywrightCoverConfig,

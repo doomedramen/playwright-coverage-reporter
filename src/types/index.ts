@@ -17,6 +17,8 @@ export interface PageElement {
     width: number;
     height: number;
   };
+  discoverySource?: string; // Source where element was discovered
+  discoveryContext?: string; // Context of discovery (static, runtime, etc.)
 }
 
 export interface TestSelector {

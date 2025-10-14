@@ -55,6 +55,18 @@ export class PlaywrightCoverEngine {
 
       // Step 3: Calculate coverage
       console.log('📊 Calculating coverage...');
+
+      // Calculate coverage for each page using test selectors
+      pageCoverages.forEach(pageCoverage => {
+        const coverage = this.coverageCalculator.calculateCoverage(
+          pageCoverage.elements,
+          testSelectors.selectors,
+          pageCoverage.url
+        );
+        pageCoverage.coverage = coverage;
+      });
+
+      // Aggregate coverage from all pages
       const overallCoverage = this.coverageCalculator.aggregatePageCoverage(pageCoverages);
 
       // Step 4: Generate recommendations

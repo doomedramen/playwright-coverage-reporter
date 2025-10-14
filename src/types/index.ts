@@ -1,3 +1,5 @@
+import { WebServerConfig } from '../utils/web-server-manager';
+
 export interface PageElement {
   selector: string;
   type: ElementType;
@@ -92,4 +94,6 @@ export interface PlaywrightCoverConfig {
   staticAnalysis: boolean;
   runtimeTracking: boolean;
   pageUrls?: string[];
+  webServer?: WebServerConfig | boolean;
+  playwrightConfigPath?: string;
 }

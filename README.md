@@ -20,6 +20,7 @@ Playwright Coverage Reporter helps you ensure your E2E tests are thoroughly test
 - 🏗️ **TypeScript Support**: Full TypeScript support with comprehensive type definitions
 - 🎛️ **Flexible Configuration**: Extensive configuration options for different project needs
 - 🌐 **Multi-Page Support**: Analyze coverage across multiple pages and web applications
+- 🚀 **Dev Server Integration**: Automatically start dev servers from Playwright config
 
 ## 🚀 Quick Start
 
@@ -88,6 +89,8 @@ npx playwright-coverage analyze [options]
 - `-t, --threshold <percentage>` - Coverage threshold (default: 80)
 - `-v, --verbose` - Verbose output
 - `--page-url <urls...>` - Page URLs to analyze
+- `--web-server` - Start dev server automatically from Playwright config
+- `--playwright-config <path>` - Path to Playwright config file (default: `playwright.config.js`)
 
 #### `mismatch`
 Analyze selector mismatches between tests and page elements.
@@ -102,6 +105,8 @@ npx playwright-coverage mismatch [options]
 - `-e, --exclude <patterns...>` - Exclude file patterns
 - `-v, --verbose` - Verbose output
 - `--page-url <urls...>` - Page URLs to analyze
+- `--web-server` - Start dev server automatically from Playwright config
+- `--playwright-config <path>` - Path to Playwright config file (default: `playwright.config.js`)
 
 The `mismatch` command helps identify why your test selectors aren't matching actual page elements, providing specific recommendations for improving test coverage.
 
@@ -152,6 +157,12 @@ module.exports = {
     'http://localhost:3000/admin'
   ],
 
+  // Automatically start dev server from Playwright config
+  webServer: true,
+
+  // Path to Playwright config file (optional)
+  playwrightConfigPath: 'playwright.config.js',
+
   // Coverage threshold percentage
   coverageThreshold: 80,
 
@@ -169,6 +180,81 @@ module.exports = {
 
   // Enable runtime tracking during tests
   runtimeTracking: false
+};
+```
+
+## 🚀 Web Server Integration
+
+The tool can automatically start your development server before running coverage analysis, eliminating the need to manually start servers.
+
+### Automatic Dev Server
+
+**Command Line:**
+```bash
+# Automatically start dev server from Playwright config
+npx playwright-coverage analyze --web-server
+
+# Use custom Playwright config path
+npx playwright-coverage analyze --web-server --playwright-config configs/playwright.dev.js
+```
+
+**Configuration:**
+```javascript
+module.exports = {
+  // Auto-start dev server from Playwright config
+  webServer: true,
+
+  // Custom Playwright config path (optional)
+  playwrightConfigPath: 'playwright.config.js',
+
+  // Rest of configuration...
+  pageUrls: ['http://localhost:3000']
+};
+```
+
+### How It Works
+
+1. **Discovers Server Config**: Reads your `playwright.config.js` file to find `webServer` configuration
+2. **Starts Server**: Launches your dev server using the same command Playwright uses
+3. **Waits for Ready**: Checks that the server is responding before proceeding
+4. **Runs Analysis**: Performs coverage analysis on the running server
+5. **Cleanup**: Automatically stops the server when analysis completes
+
+### Playwright Web Server Configuration
+
+Configure your `playwright.config.js` with a web server:
+
+```javascript
+// playwright.config.js
+module.exports = {
+  webServer: {
+    command: 'npm run start',
+    url: 'http://localhost:3000',
+    reuseExistingServer: !process.env.CI,
+    timeout: 120 * 1000
+  },
+
+  // Rest of Playwright config...
+};
+```
+
+### Manual Web Server Configuration
+
+If you prefer not to use Playwright's web server config, you can configure it directly:
+
+```javascript
+// playwright-coverage.config.js
+module.exports = {
+  webServer: {
+    command: 'npm run dev',
+    url: 'http://localhost:5173',
+    port: 5173,
+    reuseExistingServer: true,
+    timeout: 30000,
+    env: {
+      NODE_ENV: 'development'
+    }
+  }
 };
 ```
 

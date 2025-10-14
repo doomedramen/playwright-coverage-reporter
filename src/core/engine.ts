@@ -4,6 +4,7 @@ import { ElementDiscoverer } from '../utils/element-discoverer';
 import { CoverageCalculator } from '../utils/coverage-calculator';
 import { CoverageReporter } from '../reporters/coverage-reporter';
 import { SelectorAnalyzer, SelectorAnalysisReport } from '../utils/selector-analyzer';
+import { WebServerManager } from '../utils/web-server-manager';
 import { PlaywrightCoverConfig, CoverageReport, PageCoverage, TestSelector, PageElement } from '../types';
 
 export class PlaywrightCoverEngine {
@@ -13,6 +14,7 @@ export class PlaywrightCoverEngine {
   private coverageCalculator: CoverageCalculator;
   private coverageReporter: CoverageReporter;
   private selectorAnalyzer: SelectorAnalyzer;
+  private webServerManager: WebServerManager;
 
   constructor(config: PlaywrightCoverConfig) {
     this.config = config;
@@ -26,6 +28,7 @@ export class PlaywrightCoverEngine {
       verbose: true
     });
     this.selectorAnalyzer = new SelectorAnalyzer();
+    this.webServerManager = new WebServerManager();
   }
 
   /**
@@ -34,41 +37,56 @@ export class PlaywrightCoverEngine {
   async analyzeCoverage(): Promise<CoverageReport> {
     console.log('🚀 Starting Playwright coverage analysis...');
 
-    // Step 1: Static analysis of test files
-    console.log('📖 Analyzing test files...');
-    const testSelectors = await this.performStaticAnalysis();
+    let webServerStarted = false;
 
-    // Step 2: Discover interactive elements on pages
-    console.log('🔍 Discovering interactive elements...');
-    const pageCoverages = await this.discoverPageElements();
+    try {
+      // Step 0: Start web server if configured
+      if (this.config.webServer) {
+        webServerStarted = await this.startWebServerIfNeeded();
+      }
 
-    // Step 3: Calculate coverage
-    console.log('📊 Calculating coverage...');
-    const overallCoverage = this.coverageCalculator.aggregatePageCoverage(pageCoverages);
+      // Step 1: Static analysis of test files
+      console.log('📖 Analyzing test files...');
+      const testSelectors = await this.performStaticAnalysis();
 
-    // Step 4: Generate recommendations
-    console.log('💡 Generating recommendations...');
-    const recommendations = this.coverageCalculator.generateRecommendations(overallCoverage);
+      // Step 2: Discover interactive elements on pages
+      console.log('🔍 Discovering interactive elements...');
+      const pageCoverages = await this.discoverPageElements();
 
-    // Step 5: Create final report
-    const coverageReport: CoverageReport = {
-      summary: {
-        totalElements: overallCoverage.totalElements,
-        coveredElements: overallCoverage.coveredElements,
-        coveragePercentage: overallCoverage.coveragePercentage,
-        pages: pageCoverages.length,
-        testFiles: testSelectors.files.length
-      },
-      pages: pageCoverages,
-      uncoveredElements: overallCoverage.uncoveredElements,
-      recommendations
-    };
+      // Step 3: Calculate coverage
+      console.log('📊 Calculating coverage...');
+      const overallCoverage = this.coverageCalculator.aggregatePageCoverage(pageCoverages);
 
-    // Step 6: Generate reports
-    console.log('📄 Generating reports...');
-    await this.coverageReporter.generateReport(coverageReport);
+      // Step 4: Generate recommendations
+      console.log('💡 Generating recommendations...');
+      const recommendations = this.coverageCalculator.generateRecommendations(overallCoverage);
 
-    return coverageReport;
+      // Step 5: Create final report
+      const coverageReport: CoverageReport = {
+        summary: {
+          totalElements: overallCoverage.totalElements,
+          coveredElements: overallCoverage.coveredElements,
+          coveragePercentage: overallCoverage.coveragePercentage,
+          pages: pageCoverages.length,
+          testFiles: testSelectors.files.length
+        },
+        pages: pageCoverages,
+        uncoveredElements: overallCoverage.uncoveredElements,
+        recommendations
+      };
+
+      // Step 6: Generate reports
+      console.log('📄 Generating reports...');
+      await this.coverageReporter.generateReport(coverageReport);
+
+      return coverageReport;
+
+    } finally {
+      // Step 7: Clean up web server if we started it
+      if (webServerStarted) {
+        await this.webServerManager.stopAllServers();
+      }
+    }
   }
 
   /**
@@ -383,54 +401,104 @@ export class PlaywrightCoverEngine {
   async analyzeSelectorMismatches(): Promise<SelectorAnalysisReport> {
     console.log('🔍 Analyzing selector mismatches...');
 
-    // Get test selectors and page elements
-    const testResult = await this.performStaticAnalysis();
-    const pageCoverages = await this.discoverPageElements();
+    let webServerStarted = false;
 
-    // Flatten all page elements
-    const allPageElements: PageElement[] = [];
-    pageCoverages.forEach(pageCoverage => {
-      allPageElements.push(...pageCoverage.elements);
-    });
+    try {
+      // Step 0: Start web server if configured
+      if (this.config.webServer) {
+        webServerStarted = await this.startWebServerIfNeeded();
+      }
 
-    // Analyze mismatches
-    const analysis = this.selectorAnalyzer.analyzeSelectorMismatch(
-      testResult.selectors,
-      allPageElements
-    );
+      // Get test selectors and page elements
+      const testResult = await this.performStaticAnalysis();
+      const pageCoverages = await this.discoverPageElements();
 
-    // Display results
-    console.log('\n📊 Selector Mismatch Analysis:');
-    console.log(`Total selectors in tests: ${analysis.totalSelectors}`);
-    console.log(`Selectors that match elements: ${analysis.matchedSelectors}`);
-    console.log(`Selectors with no matches: ${analysis.unmatchedSelectors}`);
-
-    if (analysis.unmatchedSelectors > 0) {
-      console.log('\n❌ Common Mismatch Issues:');
-      const typeCounts = this.getMismatchTypeCounts(analysis.mismatches);
-      Object.entries(typeCounts).forEach(([type, count]) => {
-        if (count > 0) {
-          console.log(`  ${type}: ${count} failing selectors`);
-        }
+      // Flatten all page elements
+      const allPageElements: PageElement[] = [];
+      pageCoverages.forEach(pageCoverage => {
+        allPageElements.push(...pageCoverage.elements);
       });
 
-      console.log('\n🔍 Sample Mismatches:');
-      analysis.mismatches.slice(0, 5).forEach(mismatch => {
-        console.log(`  • ${mismatch.testSelector.raw} (${mismatch.testSelector.type})`);
-        console.log(`    Reason: ${mismatch.reason}`);
-        if (mismatch.possibleMatches.length > 0) {
-          console.log(`    Possible matches: ${mismatch.possibleMatches.length} similar elements`);
-        }
-        console.log('');
+      // Analyze mismatches
+      const analysis = this.selectorAnalyzer.analyzeSelectorMismatch(
+        testResult.selectors,
+        allPageElements
+      );
+
+      // Display results
+      console.log('\n📊 Selector Mismatch Analysis:');
+      console.log(`Total selectors in tests: ${analysis.totalSelectors}`);
+      console.log(`Selectors that match elements: ${analysis.matchedSelectors}`);
+      console.log(`Selectors with no matches: ${analysis.unmatchedSelectors}`);
+
+      if (analysis.unmatchedSelectors > 0) {
+        console.log('\n❌ Common Mismatch Issues:');
+        const typeCounts = this.getMismatchTypeCounts(analysis.mismatches);
+        Object.entries(typeCounts).forEach(([type, count]) => {
+          if (count > 0) {
+            console.log(`  ${type}: ${count} failing selectors`);
+          }
+        });
+
+        console.log('\n🔍 Sample Mismatches:');
+        analysis.mismatches.slice(0, 5).forEach(mismatch => {
+          console.log(`  • ${mismatch.testSelector.raw} (${mismatch.testSelector.type})`);
+          console.log(`    Reason: ${mismatch.reason}`);
+          if (mismatch.possibleMatches.length > 0) {
+            console.log(`    Possible matches: ${mismatch.possibleMatches.length} similar elements`);
+          }
+          console.log('');
+        });
+      }
+
+      console.log('\n💡 Recommendations:');
+      analysis.recommendations.forEach(rec => {
+        console.log(`  • ${rec}`);
       });
+
+      return analysis;
+
+    } finally {
+      // Clean up web server if we started it
+      if (webServerStarted) {
+        await this.webServerManager.stopAllServers();
+      }
+    }
+  }
+
+  /**
+   * Start web server if needed and return whether we started it
+   */
+  private async startWebServerIfNeeded(): Promise<boolean> {
+    if (!this.config.webServer) {
+      return false;
     }
 
-    console.log('\n💡 Recommendations:');
-    analysis.recommendations.forEach(rec => {
-      console.log(`  • ${rec}`);
-    });
+    try {
+      let webServerConfig;
 
-    return analysis;
+      if (this.config.webServer === true) {
+        // Auto-detect from Playwright config
+        console.log('🔍 Looking for Playwright web server configuration...');
+        webServerConfig = await this.webServerManager.extractFromPlaywrightConfig(this.config.playwrightConfigPath);
+
+        if (!webServerConfig) {
+          console.warn('⚠️ No web server configuration found in Playwright config. Skipping server start.');
+          return false;
+        }
+      } else {
+        // Use provided configuration
+        webServerConfig = this.config.webServer;
+      }
+
+      console.log('🚀 Starting web server for coverage analysis...');
+      const serverStatus = await this.webServerManager.startWebServer(webServerConfig);
+      return serverStatus.startedByTool;
+
+    } catch (error) {
+      console.error('❌ Failed to start web server:', error);
+      throw error;
+    }
   }
 
   /**

@@ -5,6 +5,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 import { PlaywrightCoverEngine } from './core/engine';
 import { PlaywrightCoverConfig, SelectorType } from './types';
+import { PlaywrightConfigReader } from './utils/playwright-config-reader';
 
 interface CliOptions {
   config?: string;
@@ -19,6 +20,8 @@ interface CliOptions {
   'discover-elements'?: boolean;
   'test-pattern'?: string[];
   'page-url'?: string[];
+  'web-server'?: boolean;
+  'playwright-config'?: string;
 }
 
 const program = new Command();
@@ -43,6 +46,8 @@ program
   .option('--discover-elements', 'Enable element discovery', true)
   .option('--test-pattern <patterns...>', 'Test file patterns')
   .option('--page-url <urls...>', 'Page URLs to analyze')
+  .option('--web-server', 'Start dev server automatically from Playwright config', false)
+  .option('--playwright-config <path>', 'Path to Playwright config file (default: playwright.config.js)')
   .action(async (options: CliOptions) => {
     try {
       const config = await loadConfiguration(options);
@@ -92,7 +97,8 @@ program
         discoverElements: true,
         staticAnalysis: true,
         runtimeTracking: false,
-        pageUrls: []
+        pageUrls: [],
+        webServer: false
       };
 
       const configContent = `
@@ -138,6 +144,8 @@ program
   .option('-e, --exclude <patterns...>', 'Exclude file patterns (default: ["node_modules/**", "dist/**"])')
   .option('-v, --verbose', 'Verbose output')
   .option('--page-url <urls...>', 'Page URLs to analyze')
+  .option('--web-server', 'Start dev server automatically from Playwright config', false)
+  .option('--playwright-config <path>', 'Path to Playwright config file (default: playwright.config.js)')
   .action(async (options: CliOptions) => {
     try {
       const config = await loadConfiguration(options);
@@ -191,10 +199,12 @@ program.parse();
  * Load configuration from file and command line options
  */
 async function loadConfiguration(options: CliOptions): Promise<PlaywrightCoverConfig> {
+  const playwrightConfigReader = new PlaywrightConfigReader();
   let config: PlaywrightCoverConfig;
 
+  // Step 1: Load Playwright Coverage config
   if (options.config && fs.existsSync(options.config)) {
-    // Load from configuration file
+    // Load from specified configuration file
     const configModule = require(path.resolve(options.config));
     config = configModule.default || configModule;
   } else if (fs.existsSync('playwright-coverage.config.js')) {
@@ -206,17 +216,73 @@ async function loadConfiguration(options: CliOptions): Promise<PlaywrightCoverCo
     config = getDefaultConfig();
   }
 
-  // Override with command line options
-  if (options.include) config.include = options.include;
-  if (options.exclude) config.exclude = options.exclude;
-  if (options.output) config.outputPath = options.output;
-  if (options.format) config.reportFormat = options.format;
-  if (options.threshold) config.coverageThreshold = parseInt(options.threshold.toString());
-  if (options['static-analysis'] !== undefined) config.staticAnalysis = options['static-analysis'];
-  if (options['runtime-tracking'] !== undefined) config.runtimeTracking = options['runtime-tracking'];
-  if (options['discover-elements'] !== undefined) config.discoverElements = options['discover-elements'];
-  if (options['page-url']) config.pageUrls = options['page-url'];
-  else if (options['pageUrl']) config.pageUrls = options['pageUrl'];
+  // Step 2: Auto-detect and merge Playwright config
+  const playwrightConfigPath = options['playwright-config'];
+  const playwrightConfig = await playwrightConfigReader.loadConfig(playwrightConfigPath);
+
+  if (playwrightConfig) {
+    console.log('📋 Found Playwright configuration, auto-merging settings...');
+
+    // Show what we found
+    const summary = playwrightConfigReader.getConfigSummary(playwrightConfig);
+    if (summary.length > 0 && options.verbose) {
+      console.log('📋 Playwright Config Summary:');
+      summary.forEach(line => console.log(`  ${line}`));
+    }
+
+    // Merge configurations
+    config = playwrightConfigReader.mergeIntoCoverageConfig(playwrightConfig, config);
+  }
+
+  // Step 3: Override with command line options (CLI takes precedence)
+  // Only override if the user actually provided the option (not just the default)
+
+  if (options.include && options.include.length > 0) {
+    config.include = options.include;
+  }
+
+  if (options.exclude && options.exclude.length > 0) {
+    config.exclude = options.exclude;
+  }
+
+  if (options.output) {
+    config.outputPath = options.output;
+  }
+
+  if (options.format && options.format !== 'console') {
+    config.reportFormat = options.format;
+  }
+
+  if (options.threshold && options.threshold !== 80) {
+    config.coverageThreshold = parseInt(options.threshold.toString());
+  }
+
+  if (options['static-analysis'] !== undefined && options['static-analysis'] !== true) {
+    config.staticAnalysis = options['static-analysis'];
+  }
+
+  if (options['runtime-tracking'] !== undefined && options['runtime-tracking'] !== false) {
+    config.runtimeTracking = options['runtime-tracking'];
+  }
+
+  if (options['discover-elements'] !== undefined && options['discover-elements'] !== true) {
+    config.discoverElements = options['discover-elements'];
+  }
+
+  if (options['page-url'] && options['page-url'].length > 0) {
+    config.pageUrls = options['page-url'];
+  } else if (options['pageUrl'] && options['pageUrl'].length > 0) {
+    config.pageUrls = options['pageUrl'];
+  }
+
+  // Only override webServer if the user explicitly set it to true
+  if (options['web-server'] === true) {
+    config.webServer = options['web-server'];
+  }
+
+  if (options['playwright-config']) {
+    config.playwrightConfigPath = options['playwright-config'];
+  }
 
   return config;
 }
@@ -239,7 +305,8 @@ function getDefaultConfig(): PlaywrightCoverConfig {
     discoverElements: true,
     staticAnalysis: true,
     runtimeTracking: false,
-    pageUrls: []
+    pageUrls: [],
+    webServer: false
   };
 }
 

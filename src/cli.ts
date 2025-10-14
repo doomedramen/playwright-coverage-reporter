@@ -24,7 +24,7 @@ interface CliOptions {
 const program = new Command();
 
 program
-  .name('playwright-cover')
+  .name('playwright-coverage')
   .description('Coverage tool for Playwright E2E tests')
   .version('1.0.0');
 
@@ -70,7 +70,7 @@ program
   .option('-f, --force', 'Overwrite existing configuration file')
   .action(async (options: { force?: boolean }) => {
     try {
-      const configPath = 'playwright-cover.config.js';
+      const configPath = 'playwright-coverage.config.js';
 
       if (fs.existsSync(configPath) && !options.force) {
         console.log(`❌ Configuration file ${configPath} already exists. Use --force to overwrite.`);
@@ -94,13 +94,13 @@ program
       };
 
       const configContent = `
-// Playwright Coverage Configuration
+// Playwright Coverage Reporter Configuration
 module.exports = ${JSON.stringify(defaultConfig, null, 2)};
 `;
 
       fs.writeFileSync(configPath, configContent);
       console.log(`✅ Configuration file created: ${configPath}`);
-      console.log('💡 You can now customize the configuration and run: playwright-cover analyze');
+      console.log('💡 You can now customize the configuration and run: playwright-coverage analyze');
 
     } catch (error) {
       console.error('❌ Failed to create configuration file:', error);
@@ -165,9 +165,9 @@ async function loadConfiguration(options: CliOptions): Promise<PlaywrightCoverCo
     // Load from configuration file
     const configModule = require(path.resolve(options.config));
     config = configModule.default || configModule;
-  } else if (fs.existsSync('playwright-cover.config.js')) {
+  } else if (fs.existsSync('playwright-coverage.config.js')) {
     // Load default configuration file
-    const configModule = require('./playwright-cover.config.js');
+    const configModule = require('./playwright-coverage.config.js');
     config = configModule.default || configModule;
   } else {
     // Use default configuration
@@ -217,7 +217,7 @@ function generateFixtureCode(): string {
 // Import this fixture in your Playwright test files
 
 import { test as base } from '@playwright/test';
-import { CoverageTracker } from 'playwright-cover';
+import { CoverageTracker } from 'playwright-coverage-reporter';
 
 export const test = base.extend({
   // Enhanced page fixture with coverage tracking

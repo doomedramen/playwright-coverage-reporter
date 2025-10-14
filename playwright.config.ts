@@ -8,8 +8,6 @@ export default defineConfig({
   workers: process.env.CI ? 1 : 2,
 
   reporter: [
-    ['html'],
-    ['json', { outputFile: 'test-results.json' }],
     ['list']
   ],
 

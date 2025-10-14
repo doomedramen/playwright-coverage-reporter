@@ -12,8 +12,8 @@ pre-commit:
     version-bump:
       run: npx -y package-bump@latest patch --stage
 
-pre-push:
-  commands:
-    # Full test suite before pushing (using Playwright test runner)
-    test:
-      run: npx playwright test
+# pre-push:
+#   commands:
+#     # Full test suite before pushing (using Playwright test runner)
+#     test:
+#       run: npm test

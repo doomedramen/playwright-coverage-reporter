@@ -1,0 +1,56 @@
+{
+  "name": "playwright-cover",
+  "version": "0.1.0",
+  "description": "A coverage tool for Playwright E2E tests that tracks interactive element coverage",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "playwright-cover": "dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "jest",
+    "lint": "eslint src/**/*.ts",
+    "prepare": "npm run build"
+  },
+  "keywords": [
+    "playwright",
+    "testing",
+    "coverage",
+    "e2e",
+    "automation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@playwright/test": "^1.40.0",
+    "commander": "^11.1.0",
+    "glob": "^10.3.0",
+    "typescript": "^5.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "eslint": "^8.54.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.1.0"
+  },
+  "peerDependencies": {
+    "playwright": "^1.40.0"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/playwright-cover.git"
+  },
+  "bugs": {
+    "url": "https://github.com/yourusername/playwright-cover/issues"
+  },
+  "homepage": "https://github.com/yourusername/playwright-cover#readme"
+}

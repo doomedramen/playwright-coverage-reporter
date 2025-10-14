@@ -51,6 +51,7 @@ program
       console.log('🔍 Starting Playwright coverage analysis...');
 
       if (options.verbose) {
+        console.log('CLI Options:', JSON.stringify(options, null, 2));
         console.log('Configuration:', config);
       }
 
@@ -90,7 +91,8 @@ program
         reportFormat: 'all',
         discoverElements: true,
         staticAnalysis: true,
-        runtimeTracking: false
+        runtimeTracking: false,
+        pageUrls: []
       };
 
       const configContent = `
@@ -183,6 +185,8 @@ async function loadConfiguration(options: CliOptions): Promise<PlaywrightCoverCo
   if (options['static-analysis'] !== undefined) config.staticAnalysis = options['static-analysis'];
   if (options['runtime-tracking'] !== undefined) config.runtimeTracking = options['runtime-tracking'];
   if (options['discover-elements'] !== undefined) config.discoverElements = options['discover-elements'];
+  if (options['page-url']) config.pageUrls = options['page-url'];
+  else if (options['pageUrl']) config.pageUrls = options['pageUrl'];
 
   return config;
 }
@@ -204,7 +208,8 @@ function getDefaultConfig(): PlaywrightCoverConfig {
     reportFormat: 'console',
     discoverElements: true,
     staticAnalysis: true,
-    runtimeTracking: false
+    runtimeTracking: false,
+    pageUrls: []
   };
 }
 

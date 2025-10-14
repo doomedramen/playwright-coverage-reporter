@@ -91,4 +91,5 @@ export interface PlaywrightCoverConfig {
   discoverElements: boolean;
   staticAnalysis: boolean;
   runtimeTracking: boolean;
+  pageUrls?: string[];
 }

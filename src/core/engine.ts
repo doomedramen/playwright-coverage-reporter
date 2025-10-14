@@ -181,24 +181,45 @@ export class PlaywrightCoverEngine {
   private async getUrlsToAnalyze(): Promise<string[]> {
     const urls: string[] = [];
 
-    // Add user-specified URLs if any
+    // Add user-specified URLs from config (highest priority)
+    if (this.config.pageUrls && this.config.pageUrls.length > 0) {
+      urls.push(...this.config.pageUrls);
+      console.log(`📍 Using ${this.config.pageUrls.length} URLs from configuration: ${this.config.pageUrls.join(', ')}`);
+    }
+
+    // Add user-specified URLs from environment variable
     if (process.env.PLAYWRIGHT_COVERAGE_URLS) {
       const envUrls = process.env.PLAYWRIGHT_COVERAGE_URLS.split(',').map(url => url.trim());
       urls.push(...envUrls);
+      console.log(`📍 Using ${envUrls.length} URLs from environment: ${envUrls.join(', ')}`);
     }
 
-    // Try to discover URLs from test files
-    const testUrls = await this.extractUrlsFromTests();
-    urls.push(...testUrls);
+    // Try to discover URLs from test files (only if no config URLs)
+    if (urls.length === 0) {
+      const testUrls = await this.extractUrlsFromTests();
+      if (testUrls.length > 0) {
+        // Convert relative URLs to absolute by adding localhost base
+        const absoluteUrls = testUrls.map(url => {
+          if (url.startsWith('http://') || url.startsWith('https://')) {
+            return url;
+          }
+          return `http://localhost:3000${url.startsWith('/') ? url : '/' + url}`;
+        });
+        urls.push(...absoluteUrls);
+        console.log(`🔍 Discovered ${testUrls.length} URLs from test files (converted to absolute): ${absoluteUrls.join(', ')}`);
+      }
+    }
 
     // Add common local development URLs if no URLs found
     if (urls.length === 0) {
-      urls.push(
+      const defaultUrls = [
         'http://localhost:3000',
         'http://localhost:8080',
         'http://localhost:4200',
         'http://localhost:8000'
-      );
+      ];
+      urls.push(...defaultUrls);
+      console.log(`🔍 Using default local URLs: ${defaultUrls.join(', ')}`);
     }
 
     return urls.filter(url => url && url.length > 0);

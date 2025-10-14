@@ -90,15 +90,29 @@ npx playwright-coverage demo
 
 ### Integration with Playwright
 
-#### Native Playwright Reporter Integration
+#### Native Playwright Reporter Integration (Recommended)
 
-The recommended approach is to use the **native Playwright reporter** for seamless integration with your existing test suite.
+The best approach is to use the **native Playwright reporter** which integrates seamlessly with your existing test suite using only your `playwright.config.ts` file - no separate configuration needed.
 
 ##### Quick Setup
 
-1. **Set up the reporter**:
-```bash
-npx playwright-coverage setup-reporter --type development
+1. **Add to your existing playwright.config.ts**:
+```typescript
+import { defineConfig, devices } from '@playwright/test';
+import { PlaywrightCoverageReporter } from 'playwright-coverage-reporter';
+
+export default defineConfig({
+  // ... your existing configuration
+  reporter: [
+    ['html'],  // Keep your existing reporters
+    [PlaywrightCoverageReporter, {
+      outputPath: './coverage-report',
+      threshold: 80,
+      verbose: true
+    }]
+  ],
+  // ... rest of your config
+});
 ```
 
 2. **Run your tests**:
@@ -110,6 +124,16 @@ npx playwright test
 ```bash
 # Console output appears automatically during test execution
 # For HTML report: open coverage-report/index.html
+```
+
+That's it! No separate configuration files needed - everything is configured directly in your Playwright config.
+
+##### Automatic Setup (Optional)
+
+If you prefer automatic setup, you can use the CLI:
+
+```bash
+npx playwright-coverage setup-reporter --type development
 ```
 
 ##### Manual Configuration
@@ -214,40 +238,103 @@ test('user flow with coverage tracking', async ({ page, trackInteraction }) => {
 
 2. **Configure coverage options in playwright.config.ts**:
 ```typescript
-import { defineConfig } from '@playwright/test';
+import { defineConfig, devices } from '@playwright/test';
 import { PlaywrightCoverageReporter } from 'playwright-coverage-reporter';
 
 export default defineConfig({
+  // Your standard Playwright configuration
+  testDir: './tests',
+  fullyParallel: true,
+  forbidOnly: !!process.env.CI,
+  retries: process.env.CI ? 2 : 0,
+  workers: process.env.CI ? 1 : undefined,
+
+  // Add coverage reporter with custom options
   reporter: [
-    ['html'],
+    ['html'],  // Keep your existing reporters
     [PlaywrightCoverageReporter, {
-      threshold: 80,
       outputPath: './coverage-report',
-      elementDiscovery: true,  // Enable automatic element discovery
+      format: 'console',     // or 'html', 'json', 'all'
+      threshold: 80,         // Coverage threshold percentage
+      verbose: true,         // Enable verbose logging
+      elementDiscovery: true, // Auto-discover elements on page load
       runtimeDiscovery: true, // Track interactions during tests
-      verbose: true
+      pageUrls: [           // Pages to analyze
+        'http://localhost:3000',
+        'http://localhost:3000/login'
+      ],
+      captureScreenshots: false // Enable screenshot capture for debugging
     }]
   ],
 
-  // Configure coverage fixtures
-  coverageOptions: {
-    outputPath: './coverage-report',
-    threshold: 80,
-    verbose: true,
-    elementDiscovery: true,
-    runtimeDiscovery: true,
-    captureScreenshots: false
-  }
+  // Standard Playwright configuration
+  use: {
+    baseURL: 'http://localhost:3000',
+    trace: 'on-first-retry',
+    screenshot: 'only-on-failure',
+  },
+
+  // Your existing web server configuration
+  webServer: {
+    command: 'npm start',
+    url: 'http://localhost:3000',
+    reuseExistingServer: !process.env.CI,
+  },
+
+  // Your existing browser projects
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] },
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] },
+    },
+  ],
 });
 ```
 
-#### Features
+#### Key Benefits
 
 - **🔍 Automatic Element Discovery**: Elements are discovered automatically when pages load
 - **📊 Interaction Tracking**: All interactions are tracked with stack trace analysis
-- **🎯 Coverage Options**: Configurable via Playwright config or fixtures
 - **⚡ Zero Overhead**: Minimal performance impact during test execution
 - **📱 Multi-browser**: Works across all Playwright browsers
+- **🚀 No Separate Config**: Uses your existing `playwright.config.ts` - no additional files needed
+- **🎛️ Native Integration**: All configuration options are native Playwright reporter options
+- **🔧 Flexible Setup**: Works alongside your existing reporters and configuration
+
+#### Configuration Options
+
+All configuration is done directly in your `playwright.config.ts` reporter section:
+
+| Option | Type | Default | Description |
+|--------|------|---------|-------------|
+| `outputPath` | string | `./coverage-report` | Directory for coverage reports |
+| `format` | string | `console` | Report format: `console`, `html`, `json`, `all` |
+| `threshold` | number | `80` | Coverage threshold percentage (0-100) |
+| `verbose` | boolean | `false` | Enable detailed logging |
+| `elementDiscovery` | boolean | `true` | Auto-discover elements on page load |
+| `runtimeDiscovery` | boolean | `false` | Track interactions during tests |
+| `pageUrls` | string[] | `[]` | Specific pages to analyze |
+| `captureScreenshots` | boolean | `false` | Enable screenshots for debugging |
+
+#### Environment Variables
+
+You can also configure options via environment variables:
+
+```bash
+PLAYWRIGHT_COVERAGE_OUTPUT=./custom-coverage
+PLAYWRIGHT_COVERAGE_FORMAT=html
+PLAYWRIGHT_COVERAGE_THRESHOLD=90
+PLAYWRIGHT_COVERAGE_VERBOSE=true
+PLAYWRIGHT_COVERAGE_RUNTIME_DISCOVERY=true
+```
 
 ### Legacy Standalone Approach
 

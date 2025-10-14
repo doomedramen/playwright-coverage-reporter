@@ -1,5 +1,5 @@
 import { defineConfig, devices } from '@playwright/test';
-import { PlaywrightCoverageReporter } from './dist/index.js';
+import { PlaywrightCoverageReporter } from './dist/reporter/coverage-reporter.js';
 
 export default defineConfig({
   testDir: './tests',
@@ -10,21 +10,18 @@ export default defineConfig({
 
   reporter: [
     ['list'],
-    [
-      PlaywrightCoverageReporter,
-      {
-        outputPath: './coverage-report',
-        format: 'html',
-        threshold: 70,
-        verbose: true,
-        elementDiscovery: true,
-        pageUrls: [
-          'http://localhost:3000'
-        ],
-        runtimeDiscovery: true,
-        captureScreenshots: true
-      }
-    ]
+    ['./dist/reporter/coverage-reporter.js', {
+      outputPath: './coverage-report',
+      format: 'html',
+      threshold: 70,
+      verbose: true,
+      elementDiscovery: true,
+      pageUrls: [
+        'http://localhost:3000'
+      ],
+      runtimeDiscovery: true,
+      captureScreenshots: true
+    }]
   ],
 
   use: {

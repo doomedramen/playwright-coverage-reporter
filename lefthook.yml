@@ -16,4 +16,4 @@ pre-push:
   commands:
     # Full test suite before pushing (using Playwright test runner)
     test:
-      run: npm test
+      run: node node_modules/playwright/lib/program.js test

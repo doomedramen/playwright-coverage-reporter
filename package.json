@@ -1,6 +1,6 @@
 {
   "name": "playwright-coverage-reporter",
-  "version": "2.0.13",
+  "version": "2.0.14",
   "description": "🎯 Native Playwright coverage reporter with runtime element discovery. Seamlessly integrates with Playwright test runner to analyze UI element coverage, discover interactive elements during test execution, and generate comprehensive reports with Istanbul support.",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -10,7 +10,7 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "test": "npx playwright test",
+    "test": "node node_modules/playwright/lib/program.js test",
     "test:demo": "node dist/cli.js demo",
     "lint": "eslint src/**/*.ts",
     "lint:fix": "eslint src/**/*.ts --fix",

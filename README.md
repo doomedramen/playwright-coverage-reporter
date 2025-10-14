@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![codecov](https://codecov.io/gh/DoomedRamen/playwright-coverage-reporter/branch/main/graph/badge.svg)](https://codecov.io/gh/DoomedRamen/playwright-coverage-reporter)
 
-> 📊 **v2.0.15** - Native Playwright integration for UI element coverage analysis. Discover interactive elements, analyze selector coverage, and generate comprehensive reports with Istanbul support. **Now with real E2E test verification!**
+> 📊 **v2.0.16** - Native Playwright integration for UI element coverage analysis. Discover interactive elements, analyze selector coverage, and generate comprehensive reports with Istanbul support.
 
 Playwright Coverage Reporter helps you ensure your E2E tests are thoroughly testing all interactive elements on your web pages. It discovers buttons, inputs, links, and other interactive elements, then analyzes your test files to see which elements are being tested.
 
@@ -90,7 +90,7 @@ npx playwright-coverage demo
 
 ### Integration with Playwright
 
-#### 🎯 **NEW: Native Playwright Reporter Integration**
+#### Native Playwright Reporter Integration
 
 The recommended approach is to use the **native Playwright reporter** for seamless integration with your existing test suite.
 
@@ -274,7 +274,7 @@ Generate test fixture code.
 npx playwright-coverage fixture [-o <output>]
 ```
 
-#### `setup-reporter` ⭐ **NEW**
+#### `setup-reporter`
 Set up Playwright reporter configuration.
 
 ```bash
@@ -303,7 +303,7 @@ npx playwright-coverage setup-reporter --type ci --base-url https://staging.exam
 npx playwright-coverage setup-reporter --type comprehensive --page-urls /admin /dashboard --threshold 95
 ```
 
-#### `validate-reporter` ⭐ **NEW**
+#### `validate-reporter`
 Validate Playwright reporter configuration.
 
 ```bash
@@ -313,7 +313,7 @@ npx playwright-coverage validate-reporter [options]
 **Options:**
 - `-c, --config <path>` - Path to Playwright config file (default: `playwright.config.ts`)
 
-#### `migrate-to-reporter` ⭐ **NEW**
+#### `migrate-to-reporter`
 Migrate from standalone CLI to Playwright reporter configuration.
 
 ```bash

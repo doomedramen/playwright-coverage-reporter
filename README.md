@@ -13,11 +13,13 @@ Playwright Coverage Reporter helps you ensure your E2E tests are thoroughly test
 
 - 🔍 **Element Discovery**: Automatically discover all interactive elements (buttons, inputs, links, forms, etc.) on your web pages
 - 📈 **Coverage Analysis**: Analyze test files to determine which elements are covered by selectors
+- 🔧 **Selector Mismatch Analysis**: Identify why test selectors aren't matching actual page elements with specific recommendations
 - 📊 **Multiple Reports**: Generate console, JSON, HTML, LCOV, and Istanbul-compatible coverage reports
 - 🎯 **Istanbul Integration**: Export coverage data in LCOV and Istanbul formats for CI/CD integration
 - ⚡ **Easy Setup**: Simple CLI interface with minimal configuration required
 - 🏗️ **TypeScript Support**: Full TypeScript support with comprehensive type definitions
 - 🎛️ **Flexible Configuration**: Extensive configuration options for different project needs
+- 🌐 **Multi-Page Support**: Analyze coverage across multiple pages and web applications
 
 ## 🚀 Quick Start
 
@@ -85,6 +87,23 @@ npx playwright-coverage analyze [options]
 - `-f, --format <format>` - Report format: `console|json|html|lcov|istanbul|all`
 - `-t, --threshold <percentage>` - Coverage threshold (default: 80)
 - `-v, --verbose` - Verbose output
+- `--page-url <urls...>` - Page URLs to analyze
+
+#### `mismatch`
+Analyze selector mismatches between tests and page elements.
+
+```bash
+npx playwright-coverage mismatch [options]
+```
+
+**Options:**
+- `-c, --config <path>` - Path to configuration file
+- `-i, --include <patterns...>` - Include file patterns (default: `["**/*.spec.ts", "**/*.test.ts"]`)
+- `-e, --exclude <patterns...>` - Exclude file patterns
+- `-v, --verbose` - Verbose output
+- `--page-url <urls...>` - Page URLs to analyze
+
+The `mismatch` command helps identify why your test selectors aren't matching actual page elements, providing specific recommendations for improving test coverage.
 
 #### `demo`
 Run a demonstration of the coverage tool.
@@ -126,6 +145,13 @@ module.exports = {
     '[aria-hidden="true"]'
   ],
 
+  // Page URLs to analyze for element discovery
+  pageUrls: [
+    'http://localhost:3000',
+    'http://localhost:3000/login',
+    'http://localhost:3000/admin'
+  ],
+
   // Coverage threshold percentage
   coverageThreshold: 80,
 
@@ -148,7 +174,7 @@ module.exports = {
 
 ## 📊 Reports
 
-### Console Report
+### Coverage Report
 ```
 🔍 Starting Playwright coverage analysis...
 📊 Coverage Summary:
@@ -164,6 +190,31 @@ module.exports = {
 🎯 Uncovered Elements:
    • button: "Submit Order" (demo-page:checkout.spec.ts:15)
    • input: "Search" (demo-page:search.spec.ts:8)
+```
+
+### Selector Mismatch Analysis
+```
+🔍 Analyzing selector mismatches...
+📊 Selector Mismatch Analysis:
+Total selectors in tests: 699
+Selectors that match elements: 15
+Selectors with no matches: 684
+
+❌ Common Mismatch Issues:
+  css: 450 failing selectors
+  text: 120 failing selectors
+  test-id: 114 failing selectors
+
+🔍 Sample Mismatches:
+  • button[type="submit"] (css)
+    Reason: CSS selector 'button[type="submit"]' matches no elements
+  • :text("Sign In") (text)
+    Reason: Text selector 'Sign In' not found. Current page text: Login, Register
+
+💡 Recommendations:
+  • Add data-testid attributes to interactive elements for more reliable testing
+  • 114 test ID selectors are failing - verify test IDs match actual elements
+  • Consider using test IDs instead of text selectors for better stability
 ```
 
 ### HTML Report

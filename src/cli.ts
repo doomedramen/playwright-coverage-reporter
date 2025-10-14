@@ -28,10 +28,13 @@ interface CliOptions {
 
 const program = new Command();
 
+// Get version from package.json
+const packageVersion = require('../package.json').version;
+
 program
   .name('playwright-coverage')
   .description('Coverage tool for Playwright E2E tests')
-  .version('1.0.0');
+  .version(packageVersion);
 
 program
   .command('analyze')
@@ -203,9 +206,11 @@ program
   .option('-o, --output <path>', 'Output Playwright config file (default: playwright.config.ts)', 'playwright.config.ts')
   .option('-f, --force', 'Overwrite existing configuration file')
   .option('--base-url <url>', 'Base URL for your application (default: http://localhost:3000)', 'http://localhost:3000')
-  .option('--threshold <percentage>', 'Coverage threshold percentage (default: 80)', '80')
+  .option('--threshold <percentage>', 'Coverage threshold percentage')
   .option('--page-urls <urls...>', 'Additional page URLs to analyze')
+  .option('--runtime-discovery', 'Enable runtime element discovery', true)
   .option('--no-runtime-discovery', 'Disable runtime element discovery')
+  .option('--screenshots', 'Enable screenshot capture', true)
   .option('--no-screenshots', 'Disable screenshot capture')
   .action(async (options: {
     type?: string;
@@ -214,15 +219,17 @@ program
     baseUrl?: string;
     threshold?: string;
     pageUrls?: string[];
+    runtimeDiscovery?: boolean;
     noRuntimeDiscovery?: boolean;
+    screenshots?: boolean;
     noScreenshots?: boolean;
   }) => {
     try {
       const configPath = options.output || 'playwright.config.ts';
 
       if (fs.existsSync(configPath) && !options.force) {
-        console.log(`❌ Configuration file ${configPath} already exists. Use --force to overwrite.`);
-        return;
+        console.error(`❌ Configuration file ${configPath} already exists. Use --force to overwrite.`);
+        process.exit(1);
       }
 
       console.log('🔧 Setting up Playwright coverage reporter...');
@@ -809,7 +816,9 @@ function generatePlaywrightConfig(options: {
   baseUrl?: string;
   threshold?: string;
   pageUrls?: string[];
+  runtimeDiscovery?: boolean;
   noRuntimeDiscovery?: boolean;
+  screenshots?: boolean;
   noScreenshots?: boolean;
 }): string {
   const { CoveragePresets } = require('./config/playwright-config');
@@ -824,40 +833,51 @@ function generatePlaywrightConfig(options: {
     pageUrls.push(...options.pageUrls);
   }
 
+  // Build coverage config based on type
+  const configOptions: any = {};
+
+  // Only add threshold if explicitly provided
+  if (options.threshold) {
+    configOptions.threshold = parseInt(options.threshold);
+  }
+
+  // Add page URLs for types that support them
+  if (type === 'ci' || type === 'testing' || type === 'comprehensive' || type === 'development') {
+    configOptions.pageUrls = pageUrls;
+  }
+
+  // Add runtime discovery and screenshot options for types that support them
+  if (type === 'comprehensive' || type === 'development') {
+    // Handle positive and negative flags - negative flags take precedence
+    if (options.noRuntimeDiscovery !== undefined) {
+      configOptions.runtimeDiscovery = !options.noRuntimeDiscovery;
+    } else if (options.runtimeDiscovery !== undefined) {
+      configOptions.runtimeDiscovery = options.runtimeDiscovery;
+    }
+
+    if (options.noScreenshots !== undefined) {
+      configOptions.captureScreenshots = !options.noScreenshots;
+    } else if (options.screenshots !== undefined) {
+      configOptions.captureScreenshots = options.screenshots;
+    }
+  }
+
   switch (type) {
     case 'ci':
-      coverageConfig = CoveragePresets.ci({
-        threshold: options.threshold && options.threshold !== '80' ? parseInt(options.threshold) : undefined,
-        pageUrls
-      });
+      coverageConfig = CoveragePresets.ci(configOptions);
       break;
     case 'testing':
-      coverageConfig = CoveragePresets.testing({
-        threshold: options.threshold && options.threshold !== '80' ? parseInt(options.threshold) : undefined,
-        pageUrls
-      });
+      coverageConfig = CoveragePresets.testing(configOptions);
       break;
     case 'basic':
-      coverageConfig = CoveragePresets.basic({
-        threshold: options.threshold && options.threshold !== '80' ? parseInt(options.threshold) : undefined
-      });
+      coverageConfig = CoveragePresets.basic(configOptions);
       break;
     case 'comprehensive':
-      coverageConfig = CoveragePresets.comprehensive({
-        threshold: options.threshold && options.threshold !== '80' ? parseInt(options.threshold) : undefined,
-        pageUrls,
-        runtimeDiscovery: !options.noRuntimeDiscovery,
-        captureScreenshots: !options.noScreenshots
-      });
+      coverageConfig = CoveragePresets.comprehensive(configOptions);
       break;
     case 'development':
     default:
-      coverageConfig = CoveragePresets.development({
-        threshold: options.threshold && options.threshold !== '80' ? parseInt(options.threshold) : undefined,
-        pageUrls,
-        runtimeDiscovery: !options.noRuntimeDiscovery,
-        captureScreenshots: !options.noScreenshots
-      });
+      coverageConfig = CoveragePresets.development(configOptions);
       break;
   }
 

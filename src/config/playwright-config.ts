@@ -132,10 +132,16 @@ export class PlaywrightCoverageConfig {
    * Merge multiple configurations (later configs override earlier ones)
    */
   static merge(...configs: Partial<CoverageReporterOptions>[]): CoverageReporterOptions {
-    return configs.reduce((merged, config) => ({
-      ...merged,
-      ...config
-    }), this.basic());
+    return configs.reduce((merged, config) => {
+      const result = { ...merged };
+      for (const [key, value] of Object.entries(config)) {
+        // Only override if the value is not undefined or null
+        if (value !== undefined && value !== null) {
+          (result as any)[key] = value;
+        }
+      }
+      return result;
+    }, this.basic());
   }
 
   /**

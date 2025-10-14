@@ -9,12 +9,20 @@
 
 Playwright Coverage Reporter helps you ensure your E2E tests are thoroughly testing all interactive elements on your web pages. It discovers buttons, inputs, links, and other interactive elements, then analyzes your test files to see which elements are being tested.
 
-## 🆕 What's New in v2.0.0
+## 🆕 What's New in v2.0.7
 
-### ✅ **Verified with Real E2E Tests**
-- **48% coverage detection** on comprehensive test application
-- **11/23 elements covered** in real-world scenario
-- **All report formats working** (HTML, JSON, LCOV, Istanbul)
+### 🔧 **CLI Configuration Fixes**
+- **Fixed CLI threshold handling** - Preset defaults now work correctly (development: 70%, testing: 100%)
+- **Fixed configuration merge function** - Properly handles `undefined` and `null` values
+- **Fixed CLI flag handling** - `--no-runtime-discovery` and `--no-screenshots` work correctly
+- **Fixed force flag logic** - Properly exits with error code 1 when overwriting files
+- **Fixed JavaScript syntax generation** - CLI now generates valid JavaScript syntax instead of JSON
+
+### ✅ **Test Suite Improvements**
+- **53/56 tests passing** - Significant improvement from previous versions
+- **All CLI configuration tests passing** - Core functionality fully working
+- **Fixed preset configuration handling** - All types (development, ci, testing, basic, comprehensive) work as expected
+- **Comprehensive edge case coverage** - Configuration merge and validation improvements
 
 ### 🏗️ **Native Playwright Integration**
 - **Seamless reporter integration** - no more fighting with TypeScript infrastructure
@@ -31,6 +39,13 @@ Playwright Coverage Reporter helps you ensure your E2E tests are thoroughly test
 - **Fixed coverage calculation bug** - now correctly matches selectors (was 0%, now 48%)
 - **TypeScript config warnings resolved** - tool works with minimal warnings
 - **Enhanced selector matching** for complex real-world scenarios
+
+## 🆕 What's New in v2.0.0
+
+### ✅ **Verified with Real E2E Tests**
+- **48% coverage detection** on comprehensive test application
+- **11/23 elements covered** in real-world scenario
+- **All report formats working** (HTML, JSON, LCOV, Istanbul)
 
 ## ✨ Features
 

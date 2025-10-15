@@ -2,7 +2,7 @@ name: CI with Coverage Reporting
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main ]  # Only trigger coverage workflow on main branch
   pull_request:
     branches: [ main ]
 
@@ -33,9 +33,17 @@ jobs:
     - name: Run Playwright tests with coverage
       run: npm test
       env:
-        PLAYWRIGHT_COVERAGE_FORMAT: json
+        PLAYWRIGHT_COVERAGE_FORMAT: lcov
         PLAYWRIGHT_COVERAGE_THRESHOLD: 80
         PLAYWRIGHT_COVERAGE_VERBOSE: true
+
+    - name: Upload coverage reports to Codecov
+      uses: codecov/codecov-action@v5
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage-report/lcov.info
+        fail_ci_if_error: false
+        verbose: true
 
     - name: Upload coverage reports
       uses: actions/upload-artifact@v4
@@ -136,3 +144,61 @@ jobs:
         npm init -y
         npm install ../playwright-coverage-reporter-*.tgz
         npx playwright-coverage --help
+
+  publish:
+    needs: [test, build-and-test]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Use Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20.x'
+        registry-url: 'https://registry.npmjs.org'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build
+      run: npm run build
+
+    - name: Publish to NPM
+      run: npm publish
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+    - name: Create GitHub Release
+      run: |
+        # Get the version from package.json
+        NEW_VERSION=$(node -p "require('./package.json').version")
+
+        # Create release using GitHub CLI
+        gh release create "v$NEW_VERSION" \
+          --title "Release v$NEW_VERSION" \
+          --notes "🎯 **Playwright Coverage Reporter v$NEW_VERSION**
+
+          ## 🚀 Installation
+          \`\`\`bash
+          npm install -D playwright-coverage-reporter
+          \`\`\`
+
+          ## ✨ What's new
+          - Automatic version bumping via pre-commit hooks
+          - Comprehensive UI element coverage analysis
+          - Istanbul/LCOV format support for CI/CD integration
+          - Multiple report formats (console, JSON, HTML)
+          - CLI with multiple commands and options
+          - Codecov integration for coverage tracking
+
+          ## 📖 Quick Start
+          \`\`\`bash
+          npx playwright-coverage analyze
+          \`\`\`
+
+          📚 [Documentation](https://github.com/DoomedRamen/playwright-coverage-reporter#readme)"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

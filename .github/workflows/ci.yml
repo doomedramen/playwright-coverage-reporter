@@ -2,13 +2,12 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ develop ]  # Only trigger CI on develop branch
   pull_request:
     branches: [ main ]
 
 permissions:
-  contents: write
-  packages: write
+  contents: read
 
 jobs:
   test:

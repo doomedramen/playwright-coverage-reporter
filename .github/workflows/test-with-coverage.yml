@@ -38,6 +38,9 @@ jobs:
 
     - name: Generate LCOV format for Codecov
       run: |
+        # Ensure coverage-report directory exists
+        mkdir -p coverage-report
+
         # Create a simple LCOV file for Codecov if coverage report exists
         if [ -f "coverage-report/coverage-report.json" ]; then
           echo "TN:PlaywrightCoverage" > ./coverage-report/lcov.info

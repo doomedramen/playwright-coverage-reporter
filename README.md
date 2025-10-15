@@ -11,16 +11,22 @@ Playwright Coverage Reporter helps you ensure your E2E tests are thoroughly test
 
 ## ✨ Features
 
+### Core Coverage Features
 - 🔍 **Cross-Test Coverage Aggregation**: Track which elements are covered by ANY test across your entire test suite
 - 📈 **Persistent Coverage Data**: Coverage data persists across test runs to build comprehensive coverage maps
 - 🎯 **Smart Recommendations**: Get prioritized suggestions for uncovered elements with generated test code
 - 📊 **Multiple Report Formats**: Console, JSON, HTML, and LCOV coverage reports with detailed insights
 - 🔍 **Runtime Element Discovery**: Automatically discover interactive elements during test execution
 - 🎯 **Istanbul Integration**: Export coverage data in LCOV format for CI/CD integration
-- ⚡ **Easy Setup**: Simple Playwright config integration - no separate configuration files needed
-- 🏗️ **TypeScript Support**: Full TypeScript support with comprehensive type definitions
-- 🎛️ **Flexible Configuration**: Extensive configuration options for different project needs
+
+### Enterprise Features
+- ⚡ **Performance Optimization**: Batch processing, concurrency control, and memory management for large test suites
+- 🛡️ **Advanced Error Handling**: Intelligent error recovery with detailed guidance and troubleshooting steps
+- 🔧 **Configuration Validation**: Comprehensive validation with actionable recommendations and debug mode
+- 🎯 **Element Filtering**: Advanced filtering system with presets for comprehensive, essential, and minimal coverage
+- 📊 **Performance Monitoring**: Built-in performance metrics and optimization recommendations
 - 🚀 **Zero Configuration**: Works out of the box with existing Playwright configs
+- 🏗️ **TypeScript Support**: Full TypeScript support with comprehensive type definitions
 
 ## 🚀 Quick Start
 
@@ -121,6 +127,7 @@ All configuration is done directly in your `playwright.config.ts` reporter secti
 
 | Option | Type | Default | Description |
 |--------|------|---------|-------------|
+| **Core Options** | | | |
 | `outputPath` | string | `./coverage-report` | Directory for coverage reports |
 | `format` | string | `console` | Report format: `console`, `html`, `json`, `lcov`, `all` |
 | `threshold` | number | `80` | Coverage threshold percentage (0-100) |
@@ -129,6 +136,16 @@ All configuration is done directly in your `playwright.config.ts` reporter secti
 | `runtimeDiscovery` | boolean | `false` | Track interactions during tests |
 | `pageUrls` | string[] | `[]` | Specific pages to analyze |
 | `captureScreenshots` | boolean | `false` | Enable screenshots for debugging |
+| | | | |
+| **Enterprise Features** | | | |
+| `validateConfig` | boolean | `true` | Enable comprehensive configuration validation |
+| `debugMode` | boolean | `false` | Enable debug information and performance analysis |
+| `performanceProfile` | string | `'development'` | Performance preset: `development`, `ci`, `large`, `minimal` |
+| `elementFilter` | object/string | `undefined` | Element filtering configuration or preset name |
+| `enableErrorRecovery` | boolean | `true` | Enable automatic error recovery with degraded mode |
+| `cacheResults` | boolean | `true` | Enable result caching for better performance |
+| `maxConcurrency` | number | `profile-dependent` | Maximum concurrent operations |
+| `timeoutMs` | number | `30000` | Operation timeout in milliseconds |
 
 ### Configuration Presets
 
@@ -216,6 +233,60 @@ npx playwright-coverage validate-reporter [options]
 **Options:**
 - `-c, --config <path>` - Path to Playwright config file (default: `playwright.config.ts`)
 
+### `debug-config`
+
+Debug and analyze Playwright coverage configuration with comprehensive validation and performance analysis.
+
+```bash
+npx playwright-coverage debug-config [options]
+```
+
+**Options:**
+- `-c, --config <path>` - Path to Playwright config file (default: `playwright.config.ts`)
+- `--performance` - Include performance analysis and recommendations
+- `--filter-stats` - Include element filter statistics and impact analysis
+
+**Example:**
+```bash
+npx playwright-coverage debug-config --performance --filter-stats
+```
+
+### `performance-test`
+
+Test performance with different optimization settings to find the best configuration for your project.
+
+```bash
+npx playwright-coverage performance-test [options]
+```
+
+**Options:**
+- `-t, --test-dir <path>` - Test directory path (default: `./tests`)
+- `-p, --profile <profile>` - Performance profile: `development|ci|large|minimal` (default: `development`)
+- `--iterations <count>` - Number of test iterations (default: `3`)
+
+**Example:**
+```bash
+npx playwright-coverage performance-test --profile ci --iterations 5
+```
+
+### `filter-test`
+
+Test element filtering with different configurations to optimize coverage analysis.
+
+```bash
+npx playwright-coverage filter-test [options]
+```
+
+**Options:**
+- `-c, --config <string>` - Filter configuration string or preset name
+- `-p, --preset <preset>` - Filter preset: `comprehensive|essential|minimal|forms|navigation`
+- `-u, --url <url>` - Test URL to analyze (default: `http://localhost:3000`)
+
+**Example:**
+```bash
+npx playwright-coverage filter-test --preset essential
+```
+
 ### `migrate-to-reporter`
 
 Migrate from standalone CLI to Playwright reporter configuration.
@@ -279,6 +350,80 @@ Export coverage data in standard LCOV format for CI/CD integration with tools li
 
 ## 🔧 Advanced Usage
 
+### Performance Optimization
+
+For large test suites, use performance profiles to optimize execution:
+
+```typescript
+import { defineConfig } from '@playwright/test';
+import { PlaywrightCoverageReporter } from 'playwright-coverage-reporter';
+
+export default defineConfig({
+  reporter: [
+    [PlaywrightCoverageReporter, {
+      performanceProfile: 'ci', // Optimized for CI/CD
+      maxConcurrency: 2,        // Limit concurrent operations
+      cacheResults: true,        // Enable caching
+      timeoutMs: 60000          // Longer timeout for large suites
+    }]
+  ],
+});
+```
+
+**Available Performance Profiles:**
+- `development`: Optimized for local development with detailed logging
+- `ci`: Optimized for CI/CD with minimal resource usage
+- `large`: Optimized for large test suites with aggressive batching
+- `minimal`: Minimal resource usage for constrained environments
+
+### Element Filtering
+
+Filter which elements to include in coverage analysis:
+
+```typescript
+export default defineConfig({
+  reporter: [
+    [PlaywrightCoverageReporter, {
+      // Use preset
+      elementFilter: 'essential',
+
+      // Or custom configuration
+      elementFilter: {
+        includeTypes: ['button', 'input', 'link'],
+        excludeTypes: ['div', 'span'],
+        includeSelectors: ['[data-testid]', '[role="button"]'],
+        excludeSelectors: ['.hidden', '[aria-hidden="true"]'],
+        minVisibility: 0.5,
+        includeHidden: false
+      }
+    }]
+  ],
+});
+```
+
+**Filter Presets:**
+- `comprehensive`: Include all interactive elements
+- `essential`: Only critical elements (buttons, inputs, links)
+- `minimal`: Bare minimum elements for basic coverage
+- `forms`: Form-related elements only
+- `navigation`: Navigation elements only
+
+### Debug Mode
+
+Enable comprehensive debugging for troubleshooting:
+
+```typescript
+export default defineConfig({
+  reporter: [
+    [PlaywrightCoverageReporter, {
+      debugMode: true,
+      validateConfig: true,
+      verbose: true
+    }]
+  ],
+});
+```
+
 ### Custom Fixtures
 
 For maximum control, you can use the custom fixtures approach:
@@ -302,20 +447,105 @@ test('user flow with coverage tracking', async ({ page, trackInteraction }) => {
 
 ### CI/CD Integration
 
-#### GitHub Actions
+#### Enhanced GitHub Actions
 ```yaml
-- name: Run Tests with Coverage
-  run: npx playwright test
+name: Tests with Coverage
+on: [push, pull_request]
 
-- name: Upload Coverage
-  uses: codecov/codecov-action@v3
-  with:
-    file: ./coverage-report/lcov.info
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests with coverage
+        run: npm test
+        env:
+          PLAYWRIGHT_COVERAGE_FORMAT: json
+          PLAYWRIGHT_COVERAGE_THRESHOLD: 80
+          PLAYWRIGHT_COVERAGE_VERBOSE: true
+
+      - name: Upload coverage reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report/
+
+      - name: Comment PR with coverage
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            if (fs.existsSync('coverage-report/coverage-summary.json')) {
+              const coverage = JSON.parse(fs.readFileSync('coverage-report/coverage-summary.json', 'utf8'));
+
+              const comment = `
+              ## 📊 Playwright Coverage Report
+
+              | Metric | Value |
+              |--------|-------|
+              | Coverage | ${coverage.coveragePercentage}% |
+              | Elements | ${coverage.coveredElements}/${coverage.totalElements} |
+              | Tests | ${coverage.testFiles} |
+
+              ${coverage.coveragePercentage < 80 ? '⚠️ Coverage below threshold!' : '✅ Coverage threshold met'}
+              `;
+
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            }
 ```
 
 ## 🔧 Troubleshooting
 
+### Debug Tools
+
+Use the built-in debugging tools to diagnose issues:
+
+```bash
+# Validate configuration
+npx playwright-coverage validate-reporter
+
+# Debug with performance analysis
+npx playwright-coverage debug-config --performance --filter-stats
+
+# Test performance settings
+npx playwright-coverage performance-test --profile ci
+
+# Test element filtering
+npx playwright-coverage filter-test --preset essential
+```
+
 ### Common Issues and Solutions
+
+#### Configuration Validation Errors
+**Issue**: Configuration validation failed during initialization
+**Solution**:
+- Run `npx playwright-coverage debug-config` for detailed analysis
+- Check for invalid option values or missing required fields
+- Enable `debugMode: true` in configuration for more details
+
+#### Performance Issues
+**Issue**: Coverage analysis is too slow or consumes too much memory
+**Solution**:
+- Use `performanceProfile: 'ci'` or `'minimal'` for better performance
+- Set `maxConcurrency` to limit concurrent operations
+- Enable `cacheResults: true` for better performance on subsequent runs
+- Use element filtering to reduce the number of elements analyzed
 
 #### Low Coverage Percentage
 **Issue**: Getting 0% or very low coverage despite having tests
@@ -323,6 +553,7 @@ test('user flow with coverage tracking', async ({ page, trackInteraction }) => {
 - Ensure `elementDiscovery: true` is set in your configuration
 - Check that tests are actually interacting with elements
 - Verify selectors in tests match actual page elements
+- Use `debugMode: true` to see detailed discovery logs
 
 #### Coverage Reports Not Generated
 **Issue**: No coverage reports are created after running tests
@@ -330,6 +561,15 @@ test('user flow with coverage tracking', async ({ page, trackInteraction }) => {
 - Ensure PlaywrightCoverageReporter is properly configured in your playwright.config.ts
 - Check that tests are passing (failed tests are excluded from coverage)
 - Verify the output directory permissions
+- Check for initialization errors in console output
+
+#### Error Recovery Mode
+**Issue**: Reporter falls back to degraded mode
+**Solution**:
+- Check console for specific error messages and guidance
+- Run `npx playwright-coverage debug-config` to identify configuration issues
+- Fix underlying configuration problems and restart tests
+- Some errors are recoverable and will provide specific guidance
 
 #### TypeScript Configuration Issues
 **Issue**: TypeScript errors when importing the reporter
@@ -337,6 +577,14 @@ test('user flow with coverage tracking', async ({ page, trackInteraction }) => {
 - Ensure you're using TypeScript files (`.ts`)
 - Check that the package is properly installed: `npm install -D playwright-coverage-reporter`
 - Make sure your tsconfig.json includes the node_modules type resolution
+
+#### Memory Issues in Large Projects
+**Issue**: Out of memory errors with large test suites
+**Solution**:
+- Use `performanceProfile: 'large'` or `performanceProfile: 'minimal'`
+- Reduce `maxConcurrency` to limit parallel processing
+- Enable element filtering to reduce scope
+- Increase system memory or run tests in smaller batches
 
 ## 🤝 Contributing
 

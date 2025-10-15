@@ -3,10 +3,13 @@
 
 pre-commit:
   commands:
+    # Lint before committing
+    lint:
+      run: npm run lint
+
     # Build before committing
     build:
       run: npm run build
-      glob: "{src}/**/*.{ts,js}"
 
     # Bump version on commits that change source files (but skip version bump commits)
     version-bump:

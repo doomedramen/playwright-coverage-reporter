@@ -260,8 +260,10 @@ test.describe('Configuration Edge Cases', () => {
   test('should handle partial environment configuration', () => {
     const originalEnv = process.env;
 
+    // Clear verbose environment variable if it exists
+    const { PLAYWRIGHT_COVERAGE_VERBOSE, ...cleanEnv } = originalEnv;
     process.env = {
-      ...originalEnv,
+      ...cleanEnv,
       PLAYWRIGHT_COVERAGE_THRESHOLD: '75'
       // Other env vars not set
     };

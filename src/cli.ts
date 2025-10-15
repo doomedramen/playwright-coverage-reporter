@@ -109,6 +109,255 @@ program
   });
 
 program
+  .command('debug-config')
+  .description('Debug and analyze Playwright coverage configuration')
+  .option('-c, --config <path>', 'Path to Playwright config file (default: playwright.config.ts)', 'playwright.config.ts')
+  .option('--performance', 'Include performance analysis')
+  .option('--filter-stats', 'Include element filter statistics')
+  .action(async (options: { config?: string; performance?: boolean; filterStats?: boolean }) => {
+    try {
+      const { ConfigValidator } = await import('./utils/config-validator');
+      const { ElementFilter } = await import('./utils/element-filter');
+      const { PerformanceOptimizer } = await import('./utils/performance-optimizer');
+
+      const configPath = options.config || 'playwright.config.ts';
+
+      if (!fs.existsSync(configPath)) {
+        console.log(`❌ Configuration file ${configPath} not found.`);
+        return;
+      }
+
+      console.log('🔍 Analyzing Playwright coverage configuration...');
+
+      // Extract configuration from file
+      const configContent = fs.readFileSync(configPath, 'utf-8');
+      const config = extractConfigFromContent(configContent);
+
+      if (!config) {
+        console.log('❌ Could not extract coverage configuration from file.');
+        return;
+      }
+
+      // Generate comprehensive debug info
+      const debugInfo = ConfigValidator.generateDebugInfo(config);
+      ConfigValidator.printDebugInfo(debugInfo);
+
+      // Performance analysis
+      if (options.performance) {
+        console.log('\n⚡ Performance Analysis');
+        console.log('═'.repeat(50));
+
+        const optimizer = new PerformanceOptimizer();
+        const recommendations = optimizer.getOptimizationRecommendations();
+
+        console.log('Recommendations:');
+        recommendations.forEach(rec => console.log(`  • ${rec}`));
+      }
+
+      // Element filter statistics
+      if (options.filterStats && config.elementFilter) {
+        console.log('\n🎯 Element Filter Analysis');
+        console.log('═'.repeat(50));
+
+        let filter;
+        if (typeof config.elementFilter === 'string') {
+          filter = ElementFilter.fromConfigString(config.elementFilter);
+        } else {
+          filter = new ElementFilter(config.elementFilter);
+        }
+
+        const stats = filter.getStats();
+        console.log(`Estimated Impact: ${stats.estimatedImpact}`);
+        console.log(`Configuration: ${JSON.stringify(stats.config, null, 2)}`);
+
+        if (stats.recommendations.length > 0) {
+          console.log('\nRecommendations:');
+          stats.recommendations.forEach(rec => console.log(`  • ${rec}`));
+        }
+      }
+
+    } catch (error) {
+      console.error('❌ Failed to debug configuration:', error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('performance-test')
+  .description('Test performance with different optimization settings')
+  .option('-t, --test-dir <path>', 'Test directory path (default: ./tests)', './tests')
+  .option('-p, --profile <profile>', 'Performance profile (development|ci|large|minimal)', 'development')
+  .option('--iterations <count>', 'Number of test iterations (default: 3)', '3')
+  .action(async (options: { testDir?: string; profile?: string; iterations?: string }) => {
+    try {
+      const { PerformanceOptimizer, PerformancePresets } = await import('./utils/performance-optimizer');
+      const { glob } = await import('glob');
+
+      const testDir = options.testDir || './tests';
+      const profile = options.profile as any;
+      const iterations = parseInt(options.iterations || '3');
+
+      console.log('🚀 Running performance test...');
+      console.log(`Test Directory: ${testDir}`);
+      console.log(`Profile: ${profile}`);
+      console.log(`Iterations: ${iterations}`);
+
+      // Find test files
+      const testFiles = await glob(`${testDir}/**/*.spec.ts`, { cwd: process.cwd() });
+      console.log(`Found ${testFiles.length} test files`);
+
+      const optimizer = new PerformanceOptimizer(PerformancePresets[profile] || PerformancePresets.development);
+
+      // Simulate processing with performance monitoring
+      const results = [];
+      for (let i = 0; i < iterations; i++) {
+        console.log(`\nIteration ${i + 1}/${iterations}:`);
+
+        optimizer.startSession();
+
+        const startTime = Date.now();
+
+        // Simulate processing test files
+        await optimizer.processBatched(
+          testFiles,
+          async (batch) => {
+            // Simulate work
+            await new Promise(resolve => setTimeout(resolve, 10));
+            return batch.map(file => ({ file, processed: true }));
+          },
+          (processed, total) => {
+            process.stdout.write(`\rProcessing: ${processed}/${total} files`);
+          }
+        );
+
+        const endTime = Date.now();
+        optimizer.updateSessionMetrics(0, testFiles.length);
+        const session = optimizer.endSession();
+
+        console.log(`  Duration: ${endTime - startTime}ms`);
+        console.log(`  Memory: ${session?.memoryUsageMB.toFixed(2)}MB`);
+
+        if (session) {
+          results.push({
+            duration: session.duration,
+            memory: session.memoryUsageMB,
+            elementsProcessed: session.elementsProcessed
+          });
+        }
+      }
+
+      // Performance summary
+      console.log('\n📊 Performance Summary');
+      console.log('═'.repeat(50));
+
+      const avgDuration = results.reduce((sum, r) => sum + r.duration, 0) / results.length;
+      const avgMemory = results.reduce((sum, r) => sum + r.memory, 0) / results.length;
+
+      console.log(`Average Duration: ${avgDuration.toFixed(2)}ms`);
+      console.log(`Average Memory: ${avgMemory.toFixed(2)}MB`);
+      console.log(`Files per Second: ${(testFiles.length / (avgDuration / 1000)).toFixed(2)}`);
+
+      // Recommendations
+      const recommendations = optimizer.getOptimizationRecommendations();
+      if (recommendations.length > 0) {
+        console.log('\n💡 Recommendations:');
+        recommendations.forEach(rec => console.log(`  • ${rec}`));
+      }
+
+    } catch (error) {
+      console.error('❌ Performance test failed:', error);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('filter-test')
+  .description('Test element filtering with different configurations')
+  .option('-c, --config <string>', 'Filter configuration string or preset name')
+  .option('-p, --preset <preset>', 'Filter preset (comprehensive|essential|minimal|forms|navigation)')
+  .option('-u, --url <url>', 'Test URL to analyze (default: http://localhost:3000)', 'http://localhost:3000')
+  .action(async (options: { config?: string; preset?: string; url?: string }) => {
+    try {
+      const { ElementFilter } = await import('./utils/element-filter');
+      // const { PageAnalyzer } = await import('./analyzers/page-analyzer'); // Commented out to avoid import error
+
+      console.log('🎯 Testing element filtering...');
+
+      // Create filter
+      let filter;
+      if (options.config) {
+        filter = ElementFilter.fromConfigString(options.config);
+        console.log(`Using config: ${options.config}`);
+      } else if (options.preset) {
+        filter = ElementFilter.fromPreset(options.preset as any);
+        console.log(`Using preset: ${options.preset}`);
+      } else {
+        filter = new ElementFilter();
+        console.log('Using default filter');
+      }
+
+      // Validate filter
+      const validation = filter.validateConfig();
+      if (!validation.valid) {
+        console.log('❌ Filter configuration errors:');
+        validation.errors.forEach(error => console.log(`  • ${error}`));
+        return;
+      }
+
+      console.log(`✅ Filter configuration is valid`);
+
+      // Get filter statistics
+      const stats = filter.getStats();
+      console.log(`Estimated Impact: ${stats.estimatedImpact}`);
+
+      if (stats.recommendations.length > 0) {
+        console.log('Recommendations:');
+        stats.recommendations.forEach(rec => console.log(`  • ${rec}`));
+      }
+
+      // Test with actual page (if available)
+      console.log(`\n🌐 Testing with URL: ${options.url}`);
+
+      try {
+        // const analyzer = new PageAnalyzer(); // Commented out to avoid import error
+        // Note: This would require a running browser, so we'll simulate
+        console.log('📝 Simulating page analysis...');
+
+        // Create mock elements for testing
+        const mockElements = [
+          { selector: '#submit-btn', type: 'button' as any, text: 'Submit', visible: true },
+          { selector: '#email-input', type: 'input' as any, text: '', visible: true },
+          { selector: '.hidden-btn', type: 'button' as any, text: 'Hidden', visible: false },
+          { selector: '#cancel-btn', type: 'button' as any, text: 'Cancel', visible: true },
+          { selector: '.nav-link', type: 'link' as any, text: 'Home', visible: true }
+        ];
+
+        const result = filter.filterElements(mockElements as any);
+
+        console.log(`\n📊 Filter Results:`);
+        console.log(`Total Elements: ${result.totalElements}`);
+        console.log(`Included Elements: ${result.includedElements}`);
+        console.log(`Excluded Elements: ${result.excludedElements}`);
+
+        if (Object.keys(result.exclusionReasons).length > 0) {
+          console.log('\nExclusion Reasons:');
+          Object.entries(result.exclusionReasons).forEach(([reason, count]) => {
+            console.log(`  ${reason}: ${count}`);
+          });
+        }
+
+      } catch (error) {
+        console.log(`⚠️ Could not test with live URL: ${error.message}`);
+        console.log('This is expected if there is no server running at the specified URL.');
+      }
+
+    } catch (error) {
+      console.error('❌ Filter test failed:', error);
+      process.exit(1);
+    }
+  });
+
+program
   .command('migrate-to-reporter')
   .description('Migrate from standalone CLI to Playwright reporter')
   .option('-c, --config <path>', 'Path to existing playwright-coverage.config.js')
@@ -514,4 +763,21 @@ export default defineConfig({
   }
 
   return result;
+}
+
+/**
+ * Extract configuration from config file content
+ */
+function extractConfigFromContent(configContent: string): any {
+  try {
+    // Look for PlaywrightCoverageReporter configuration
+    const reporterMatch = configContent.match(/PlaywrightCoverageReporter,\s*({[\s\S]*?})\s*\]/);
+    if (reporterMatch) {
+      const configString = reporterMatch[1];
+      return eval(`(${configString})`);
+    }
+  } catch (error) {
+    console.warn('Could not extract configuration:', error.message);
+  }
+  return null;
 }

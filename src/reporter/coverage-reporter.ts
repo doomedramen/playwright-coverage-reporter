@@ -1,5 +1,9 @@
 import { TestSelector, ElementType, SelectorType } from '../types';
 import { CoverageAggregator } from '../utils/coverage-aggregator';
+import { ConfigValidator } from '../utils/config-validator';
+import { ErrorHandler, CoverageAnalysisError, ErrorCodes } from '../utils/error-handler';
+import { PerformanceOptimizer, PerformancePresets } from '../utils/performance-optimizer';
+import { ElementFilter } from '../utils/element-filter';
 
 // Define basic types for reporter interface
 interface BaseTestEntry {
@@ -44,6 +48,16 @@ export interface CoverageReporterOptions {
   pageUrls?: string[];
   runtimeDiscovery?: boolean; // Enable runtime element discovery during tests
   captureScreenshots?: boolean; // Capture screenshots for uncovered elements
+
+  // Enhanced configuration options
+  validateConfig?: boolean; // Enable configuration validation
+  debugMode?: boolean; // Enable debug information
+  performanceProfile?: 'development' | 'ci' | 'large' | 'minimal'; // Performance optimization preset
+  elementFilter?: string | any; // Element filtering configuration
+  enableErrorRecovery?: boolean; // Enable automatic error recovery
+  cacheResults?: boolean; // Enable result caching
+  maxConcurrency?: number; // Maximum concurrent operations
+  timeoutMs?: number; // Operation timeout
 }
 
 export class PlaywrightCoverageReporter {
@@ -51,6 +65,12 @@ export class PlaywrightCoverageReporter {
   private testedSelectors: TestSelector[] = [];
   private testFiles: Set<string> = new Set();
   private aggregator: CoverageAggregator;
+  private elementFilter: ElementFilter;
+  private performanceOptimizer: PerformanceOptimizer;
+
+  // Enhanced error handling and validation
+  private configValidation: any;
+  private hasErrors: boolean = false;
 
   constructor(options: CoverageReporterOptions = {}) {
     try {
@@ -62,20 +82,138 @@ export class PlaywrightCoverageReporter {
         elementDiscovery: options.elementDiscovery || false,
         pageUrls: options.pageUrls || [],
         runtimeDiscovery: options.runtimeDiscovery || false,
-        captureScreenshots: options.captureScreenshots || false
+        captureScreenshots: options.captureScreenshots || false,
+        validateConfig: options.validateConfig ?? true,
+        debugMode: options.debugMode || false,
+        performanceProfile: options.performanceProfile || 'development',
+        enableErrorRecovery: options.enableErrorRecovery ?? true,
+        cacheResults: options.cacheResults ?? true,
+        maxConcurrency: options.maxConcurrency,
+        timeoutMs: options.timeoutMs || 30000
       };
+
+      // Enhanced initialization with validation and performance optimization
+      this.initializeEnhancedFeatures();
+
+      if (this.options.verbose) {
+        console.log('📊 Playwright Coverage Reporter initialized with enhanced features');
+        if (this.options.debugMode) {
+          this.printDebugInfo();
+        }
+      }
+    } catch (error) {
+      this.handleInitializationError(error);
+    }
+  }
+
+  /**
+   * Initialize enhanced features with error handling
+   */
+  private initializeEnhancedFeatures(): void {
+    try {
+      // Validate configuration
+      if (this.options.validateConfig) {
+        this.configValidation = ConfigValidator.validate(this.options);
+        if (!this.configValidation.valid) {
+          if (this.options.debugMode) {
+            ConfigValidator.printValidationResults(this.configValidation);
+          }
+          if (this.configValidation.errors.length > 0) {
+            throw ErrorHandler.createInvalidConfigError(
+              `Configuration validation failed: ${this.configValidation.errors.map(e => e.message).join(', ')}`
+            );
+          }
+        }
+      }
+
+      // Initialize performance optimizer
+      const perfConfig = PerformancePresets[this.options.performanceProfile] || PerformancePresets.development;
+      this.performanceOptimizer = new PerformanceOptimizer({
+        ...perfConfig,
+        maxConcurrency: this.options.maxConcurrency || perfConfig.maxConcurrency,
+        timeoutMs: this.options.timeoutMs || perfConfig.timeoutMs
+      });
+
+      // Initialize element filter
+      if (this.options.elementFilter) {
+        if (typeof this.options.elementFilter === 'string') {
+          this.elementFilter = ElementFilter.fromConfigString(this.options.elementFilter);
+        } else {
+          this.elementFilter = new ElementFilter(this.options.elementFilter);
+        }
+      } else {
+        this.elementFilter = new ElementFilter(); // Default filter
+      }
+
+      // Validate element filter configuration
+      const filterValidation = this.elementFilter.validateConfig();
+      if (!filterValidation.valid && this.options.verbose) {
+        console.warn('⚠️ Element filter configuration issues:', filterValidation.errors);
+      }
 
       // Initialize coverage aggregator
       this.aggregator = new CoverageAggregator(this.options.outputPath);
 
-      if (this.options.verbose) {
-        console.log('📊 Coverage aggregator initialized');
-      }
+      // Start performance monitoring
+      this.performanceOptimizer.startSession();
+
     } catch (error) {
-      // Log error but don't throw to prevent breaking Playwright
-      if (this.options?.verbose) {
-        console.warn('⚠️ Failed to initialize PlaywrightCoverageReporter:', error);
+      throw ErrorHandler.handleError(error as Error, {
+        operation: 'initialization',
+        timestamp: new Date()
+      });
+    }
+  }
+
+  /**
+   * Handle initialization errors gracefully
+   */
+  private handleInitializationError(error: any): void {
+    const coverageError = ErrorHandler.handleError(error, {
+      operation: 'initialization',
+      timestamp: new Date()
+    });
+
+    this.hasErrors = true;
+
+    if (coverageError.recoverable && this.options.enableErrorRecovery) {
+      console.warn('⚠️ Coverage reporter initialization failed, running in degraded mode');
+      // Initialize with minimal configuration for recovery
+      this.aggregator = new CoverageAggregator('./coverage-report');
+      this.elementFilter = new ElementFilter();
+      this.performanceOptimizer = new PerformanceOptimizer(PerformancePresets.minimal);
+    } else {
+      console.error('❌ Coverage reporter initialization failed:', coverageError.message);
+      if (this.options.debugMode && coverageError.guidance) {
+        console.error('\n' + coverageError.message);
+        if (coverageError.guidance.title) {
+          console.error(`💡 ${coverageError.guidance.title}`);
+          console.error(`${coverageError.guidance.description}`);
+        }
       }
+    }
+  }
+
+  /**
+   * Print debug information
+   */
+  private printDebugInfo(): void {
+    if (this.options.debugMode) {
+      console.log('\n🐛 Debug Information');
+      console.log('═'.repeat(50));
+
+      const debugInfo = ConfigValidator.generateDebugInfo(this.options);
+      console.log('Configuration:', JSON.stringify(this.options, null, 2));
+
+      const filterStats = this.elementFilter.getStats();
+      console.log('Element Filter Impact:', filterStats.estimatedImpact);
+
+      if (filterStats.recommendations.length > 0) {
+        console.log('Filter Recommendations:');
+        filterStats.recommendations.forEach(rec => console.log(`  • ${rec}`));
+      }
+
+      console.log('═'.repeat(50));
     }
   }
 

@@ -212,35 +212,9 @@ jobs:
       run: |
         # Get the version from package.json
         NEW_VERSION=$(node -p "require('./package.json').version")
-
-        # Create release using GitHub CLI with error handling
-        if gh release view "v$NEW_VERSION" >/dev/null 2>&1; then
-          echo "Release v$NEW_VERSION already exists, skipping..."
-        else
-          echo "Creating release v$NEW_VERSION..."
-          gh release create "v$NEW_VERSION" \
-            --title "Release v$NEW_VERSION" \
-            --notes "🎯 **Playwright Coverage Reporter v$NEW_VERSION**
-
-            ## 🚀 Installation
-            \`\`\`bash
-            npm install -D playwright-coverage-reporter
-            \`\`\`
-
-            ## ✨ What's new
-            - Automatic version bumping via pre-commit hooks
-            - Comprehensive UI element coverage analysis
-            - Istanbul/LCOV format support for CI/CD integration
-            - Multiple report formats (console, JSON, HTML)
-            - CLI with multiple commands and options
-            - Codecov integration for coverage tracking
-
-            ## 📖 Quick Start
-            \`\`\`bash
-            npx playwright-coverage analyze
-            \`\`\`
-
-            📚 [Documentation](https://github.com/DoomedRamen/playwright-coverage-reporter#readme)" || echo "Failed to create release, but continuing..."
-        fi
+        echo "📦 Package version: v$NEW_VERSION"
+        echo "ℹ️ GitHub release creation temporarily disabled - add RELEASE_TOKEN secret to enable"
+        echo "🔗 Create token at: https://github.com/settings/tokens"
+        echo "📝 Add as RELEASE_TOKEN in repository settings"
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}

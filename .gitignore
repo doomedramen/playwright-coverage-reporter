@@ -95,3 +95,4 @@ test-results.json
 /test-app/test-results
 /test-app/coverage-report-fixed
 /test-coverage-report
+/e2e-coverage-report

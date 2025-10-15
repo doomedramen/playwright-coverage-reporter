@@ -1,5 +1,7 @@
 import { test as base, type Page, type Locator, TestInfo } from '@playwright/test';
 import { PageElement, TestSelector, SelectorType, ElementType } from '../types';
+import { RuntimeElementDiscoverer } from '../utils/runtime-element-discoverer';
+import { CoverageAggregator } from '../utils/coverage-aggregator';
 
 export interface CoverageOptions {
   outputPath?: string;
@@ -20,6 +22,9 @@ export interface CoverageFixture {
   page: Page;
   trackInteraction: (selector: string, action?: string) => Promise<void>;
   getCoveredElements: () => TestSelector[];
+  getDiscoveredElements: () => Promise<PageElement[]>;
+  startRuntimeDiscovery: () => Promise<void>;
+  stopRuntimeDiscovery: () => Promise<void>;
   coverageOptions: CoverageOptions;
 }
 
@@ -30,6 +35,8 @@ class CoverageTracker {
   public coveredSelectors: TestSelector[] = [];
   public discoveredElements: PageElement[] = [];
   private page?: Page;
+  private runtimeDiscoverer?: RuntimeElementDiscoverer;
+  private aggregator?: CoverageAggregator;
 
   async discoverPageElements(page: Page): Promise<PageElement[]> {
     this.page = page;
@@ -237,6 +244,47 @@ class CoverageTracker {
     }
     return SelectorType.CSS;
   }
+
+  async startRuntimeDiscovery(page: Page, options: any = {}): Promise<void> {
+    this.page = page;
+    this.runtimeDiscoverer = new RuntimeElementDiscoverer(page, {
+      verbose: options.verbose || false,
+      includeHidden: options.includeHidden || false,
+      customSelectors: options.customSelectors || [],
+      excludeSelectors: options.excludeSelectors || []
+    });
+
+    await this.runtimeDiscoverer.startMonitoring();
+  }
+
+  async stopRuntimeDiscovery(): Promise<void> {
+    if (this.runtimeDiscoverer) {
+      await this.runtimeDiscoverer.stopMonitoring();
+    }
+  }
+
+  async getRuntimeDiscoveredElements(): Promise<PageElement[]> {
+    if (this.runtimeDiscoverer) {
+      return await this.runtimeDiscoverer.getDiscoveredElements();
+    }
+    return [];
+  }
+
+  async discoverNow(): Promise<PageElement[]> {
+    if (this.runtimeDiscoverer) {
+      const elements = await this.runtimeDiscoverer.discoverNow();
+      this.discoveredElements.push(...elements);
+      return elements;
+    }
+    return [];
+  }
+
+  async getDiscoveryStats(): Promise<any> {
+    if (this.runtimeDiscoverer) {
+      return await this.runtimeDiscoverer.getDiscoveryStats();
+    }
+    return null;
+  }
 }
 
 // Create the proper coverage fixture using test.extend
@@ -247,13 +295,25 @@ export const test = base.extend<CoverageFixture>({
     threshold: 80,
     verbose: false,
     elementDiscovery: true,
-    runtimeDiscovery: false,
+    runtimeDiscovery: true, // Enable runtime discovery by default
     captureScreenshots: false
   }, { option: true }],
 
   // Page fixture with automatic tracking
   page: async ({ page, coverageOptions }, use) => {
     const tracker = new CoverageTracker();
+
+    // Start runtime discovery if enabled
+    if (coverageOptions.runtimeDiscovery) {
+      await tracker.startRuntimeDiscovery(page, {
+        verbose: coverageOptions.verbose,
+        includeHidden: false
+      });
+
+      if (coverageOptions.verbose) {
+        console.log('🔍 Runtime discovery started');
+      }
+    }
 
     // Auto-discover elements on page load if enabled
     if (coverageOptions.elementDiscovery) {
@@ -267,6 +327,11 @@ export const test = base.extend<CoverageFixture>({
     }
 
     await use(page);
+
+    // Stop runtime discovery after test
+    if (coverageOptions.runtimeDiscovery) {
+      await tracker.stopRuntimeDiscovery();
+    }
   },
 
   // Track interaction fixture
@@ -323,6 +388,44 @@ export const test = base.extend<CoverageFixture>({
   getCoveredElements: async ({}, use) => {
     const tracker = new CoverageTracker();
     await use(() => tracker.coveredSelectors);
+  },
+
+  // Get discovered elements fixture
+  getDiscoveredElements: async ({}, use) => {
+    const tracker = new CoverageTracker();
+    await use(async () => {
+      const staticElements = tracker.discoveredElements;
+      const runtimeElements = await tracker.getRuntimeDiscoveredElements();
+
+      // Combine both sets, removing duplicates
+      const allElements = [...staticElements];
+      const seenSelectors = new Set(staticElements.map(e => e.selector));
+
+      runtimeElements.forEach(element => {
+        if (!seenSelectors.has(element.selector)) {
+          allElements.push(element);
+          seenSelectors.add(element.selector);
+        }
+      });
+
+      return allElements;
+    });
+  },
+
+  // Start runtime discovery fixture
+  startRuntimeDiscovery: async ({ page }, use) => {
+    const tracker = new CoverageTracker();
+    await use(async () => {
+      await tracker.startRuntimeDiscovery(page, { verbose: true });
+    });
+  },
+
+  // Stop runtime discovery fixture
+  stopRuntimeDiscovery: async ({}, use) => {
+    const tracker = new CoverageTracker();
+    await use(async () => {
+      await tracker.stopRuntimeDiscovery();
+    });
   }
 });
 

@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dynamic Test Application</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .container {
+            margin-bottom: 30px;
+        }
+        button {
+            background-color: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .hidden {
+            display: none;
+        }
+        .dynamic-section {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        input, select, textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        .success-message {
+            color: green;
+            font-weight: bold;
+        }
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 1000;
+            pointer-events: none; /* Don't block clicks when hidden */
+        }
+        .modal:not(.hidden) {
+            pointer-events: auto; /* Only block clicks when visible */
+        }
+        .modal-content {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            max-width: 500px;
+            width: 90%;
+        }
+        .tabs {
+            border-bottom: 2px solid #ddd;
+        }
+        .tab {
+            display: inline-block;
+            padding: 10px 20px;
+            cursor: pointer;
+            border: none;
+            background: none;
+            font-size: 16px;
+        }
+        .tab.active {
+            border-bottom: 2px solid #007bff;
+            color: #007bff;
+        }
+        .tab-content {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-top: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .accordion-item {
+            border: 1px solid #ddd;
+            margin-bottom: 5px;
+        }
+        .accordion-header {
+            background: #f8f9fa;
+            padding: 15px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .accordion-content {
+            padding: 15px;
+            display: none;
+        }
+        .accordion-item.active .accordion-content {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Dynamic Content Test Application</h1>
+
+    <div class="container">
+        <h2>Basic Dynamic Content</h2>
+        <button id="toggle-section" data-testid="toggle-section">Toggle Hidden Section</button>
+        <button id="add-form" data-testid="add-form">Add Dynamic Form</button>
+        <button id="open-modal" data-testid="open-modal">Open Modal</button>
+
+        <div id="hidden-section" class="hidden dynamic-section" data-testid="hidden-section">
+            <h3>Hidden Section Content</h3>
+            <p>This content was hidden initially and is now visible!</p>
+            <button id="action-btn-1" data-testid="action-btn-1">Action Button 1</button>
+            <button id="action-btn-2" data-testid="action-btn-2">Action Button 2</button>
+            <input type="text" id="dynamic-input" data-testid="dynamic-input" placeholder="Dynamic input field">
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Dynamic Form</h2>
+        <div id="dynamic-form-container" data-testid="dynamic-form-container"></div>
+    </div>
+
+    <div class="container">
+        <h2>Modal Dialog</h2>
+        <div id="modal" class="modal hidden" data-testid="modal">
+            <div class="modal-content">
+                <h3>Modal Dialog</h3>
+                <p>This is a modal dialog with interactive elements!</p>
+                <input type="email" id="modal-email" data-testid="modal-email" placeholder="Email in modal">
+                <textarea id="modal-message" data-testid="modal-message" placeholder="Message in modal" rows="3"></textarea>
+                <div style="margin-top: 15px;">
+                    <button id="modal-submit" data-testid="modal-submit">Submit</button>
+                    <button id="modal-cancel" data-testid="modal-cancel">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Tab Navigation</h2>
+        <div class="tabs" data-testid="tabs">
+            <button class="tab active" data-tab="tab1" data-testid="tab1">Tab 1</button>
+            <button class="tab" data-tab="tab2" data-testid="tab2">Tab 2</button>
+            <button class="tab" data-tab="tab3" data-testid="tab3">Tab 3</button>
+        </div>
+        <div id="tab1" class="tab-content active" data-testid="tab1-content">
+            <h3>Tab 1 Content</h3>
+            <p>Content for the first tab.</p>
+            <button id="tab1-action" data-testid="tab1-action">Tab 1 Action</button>
+        </div>
+        <div id="tab2" class="tab-content" data-testid="tab2-content">
+            <h3>Tab 2 Content</h3>
+            <p>Content for the second tab.</p>
+            <input type="text" id="tab2-input" data-testid="tab2-input" placeholder="Tab 2 input">
+            <button id="tab2-action" data-testid="tab2-action">Tab 2 Action</button>
+        </div>
+        <div id="tab3" class="tab-content" data-testid="tab3-content">
+            <h3>Tab 3 Content</h3>
+            <p>Content for the third tab.</p>
+            <select id="tab3-select" data-testid="tab3-select">
+                <option>Option 1</option>
+                <option>Option 2</option>
+                <option>Option 3</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>Accordion</h2>
+        <div class="accordion-item" data-testid="accordion-1">
+            <div class="accordion-header" data-testid="accordion-1-header">Accordion Item 1</div>
+            <div class="accordion-content" data-testid="accordion-1-content">
+                <p>Content for accordion item 1.</p>
+                <button id="accordion-1-btn" data-testid="accordion-1-btn">Accordion 1 Button</button>
+            </div>
+        </div>
+        <div class="accordion-item" data-testid="accordion-2">
+            <div class="accordion-header" data-testid="accordion-2-header">Accordion Item 2</div>
+            <div class="accordion-content" data-testid="accordion-2-content">
+                <p>Content for accordion item 2.</p>
+                <input type="checkbox" id="accordion-2-checkbox" data-testid="accordion-2-checkbox">
+                <label for="accordion-2-checkbox">Check me!</label>
+            </div>
+        </div>
+        <div class="accordion-item" data-testid="accordion-3">
+            <div class="accordion-header" data-testid="accordion-3-header">Accordion Item 3</div>
+            <div class="accordion-content" data-testid="accordion-3-content">
+                <p>Content for accordion item 3.</p>
+                <textarea id="accordion-3-textarea" data-testid="accordion-3-textarea" placeholder="Accordion 3 textarea"></textarea>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Basic toggle functionality
+        document.getElementById('toggle-section').addEventListener('click', function() {
+            const section = document.getElementById('hidden-section');
+            section.classList.toggle('hidden');
+        });
+
+        // Dynamic form creation
+        document.getElementById('add-form').addEventListener('click', function() {
+            const container = document.getElementById('dynamic-form-container');
+
+            // Create form elements dynamically
+            const form = document.createElement('form');
+            form.innerHTML = `
+                <h3>Dynamic Form</h3>
+                <div class="form-group">
+                    <label>Name:</label>
+                    <input type="text" name="name" placeholder="Enter your name" data-testid="dynamic-name">
+                </div>
+                <div class="form-group">
+                    <label>Email:</label>
+                    <input type="email" name="email" placeholder="Enter your email" data-testid="dynamic-email">
+                </div>
+                <div class="form-group">
+                    <label>Role:</label>
+                    <select name="role" data-testid="dynamic-role">
+                        <option value="">Select role</option>
+                        <option value="user">User</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <button type="submit" data-testid="dynamic-submit">Submit Dynamic Form</button>
+                    <button type="button" data-testid="dynamic-reset">Reset</button>
+                </div>
+            `;
+
+            container.appendChild(form);
+
+            // Add event listeners to the new form
+            form.addEventListener('submit', function(e) {
+                e.preventDefault();
+                const message = document.createElement('p');
+                message.className = 'success-message';
+                message.textContent = 'Dynamic form submitted successfully!';
+                form.appendChild(message);
+            });
+
+            document.querySelector('[data-testid="dynamic-reset"]').addEventListener('click', function() {
+                form.reset();
+                const message = form.querySelector('.success-message');
+                if (message) message.remove();
+            });
+        });
+
+        // Modal functionality
+        document.getElementById('open-modal').addEventListener('click', function() {
+            document.getElementById('modal').classList.remove('hidden');
+        });
+
+        document.getElementById('modal-cancel').addEventListener('click', function() {
+            document.getElementById('modal').classList.add('hidden');
+        });
+
+        document.getElementById('modal-submit').addEventListener('click', function() {
+            const email = document.getElementById('modal-email').value;
+            const message = document.getElementById('modal-message').value;
+
+            if (email && message) {
+                alert('Modal form submitted!');
+                document.getElementById('modal').classList.add('hidden');
+            }
+        });
+
+        // Tab functionality
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', function() {
+                const tabName = this.getAttribute('data-tab');
+
+                // Remove active class from all tabs and contents
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+
+                // Add active class to clicked tab and corresponding content
+                this.classList.add('active');
+                document.getElementById(tabName).classList.add('active');
+            });
+        });
+
+        // Accordion functionality
+        document.querySelectorAll('.accordion-header').forEach(header => {
+            header.addEventListener('click', function() {
+                const accordionItem = this.parentElement;
+                accordionItem.classList.toggle('active');
+            });
+        });
+
+        // Dynamic element creation based on user interactions
+        let dynamicCounter = 0;
+        document.addEventListener('click', function(e) {
+            // Add a button dynamically every 5 clicks
+            dynamicCounter++;
+            if (dynamicCounter % 5 === 0) {
+                const button = document.createElement('button');
+                button.textContent = `Dynamic Button ${Math.floor(dynamicCounter / 5)}`;
+                button.setAttribute('data-testid', `dynamic-btn-${Math.floor(dynamicCounter / 5)}`);
+                button.style.margin = '5px';
+                button.style.backgroundColor = '#28a745';
+
+                button.addEventListener('click', function() {
+                    alert(`Dynamic button ${this.textContent} clicked!`);
+                });
+
+                document.body.appendChild(button);
+            }
+        });
+    </script>
+</body>
+</html>

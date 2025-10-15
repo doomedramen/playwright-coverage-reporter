@@ -5,6 +5,70 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.27] - 2025-01-15
+
+### 🎯 Cross-Test Coverage Aggregation
+
+This major enhancement introduces intelligent cross-test coverage analysis that tracks which elements are covered by ANY test across your entire test suite, not just individual test runs.
+
+### ✨ New Features
+
+- **🔄 Persistent Coverage Data**: Coverage data is saved to `.coverage-data.json` and persists across test runs
+- **📊 Cross-Test Analysis**: Elements are considered "covered" if ANY test in your suite interacts with them
+- **🎯 Smart Recommendations**: Get prioritized suggestions for uncovered elements with generated test code
+- **🚨 Priority-Based Warnings**: High-priority alerts for critical elements (submit buttons, delete actions, etc.)
+- **📈 Coverage by Type**: Detailed breakdown by element type (buttons, inputs, links, etc.)
+- **📄 Page-Level Insights**: See which pages have the best/worst coverage across your entire suite
+
+### 🔧 Key Improvements
+
+- **Enhanced Coverage Calculator**: `CoverageAggregator` class for intelligent cross-test analysis
+- **Smart Element Mapping**: Better conversion between SelectorType and ElementType enums
+- **Improved Recommendations**: Generated test code with proper Playwright syntax
+- **Better Data Persistence**: Reliable storage and retrieval of coverage data across runs
+- **Enhanced Error Handling**: More robust handling of edge cases and malformed data
+
+### 📊 New Report Features
+
+```
+📊 CROSS-TEST COVERAGE REPORT
+══════════════════════════════════════════════════
+
+📈 SUMMARY:
+  Total Interactive Elements: 45
+  Covered Elements: 38
+  Uncovered Elements: 7
+  Coverage Percentage: 84%
+  Test Files: 12
+
+🚨 HIGH PRIORITY UNCOVERED ELEMENTS:
+  ❌ #delete-account (button): Critical delete button is not tested
+  ❌ #export-data (button): Important export functionality is not covered
+```
+
+### 🛠️ Technical Changes
+
+- **New `CoverageAggregator` Class**: Core engine for cross-test coverage analysis
+- **Enhanced Type Safety**: Fixed TypeScript compilation errors and improved type mappings
+- **Better Data Models**: Improved interfaces for coverage records and recommendations
+- **Persistent Storage**: JSON-based storage system for coverage data
+- **Smart Element Discovery**: Enhanced runtime element discovery with better tracking
+
+### 🧪 Testing Updates
+
+- **Enhanced Test Coverage**: Added tests for cross-test aggregation functionality
+- **Fixed Type Issues**: Resolved TypeScript compilation errors
+- **Improved Error Handling**: Better test coverage for edge cases
+- **Updated CLI Tests**: Fixed test expectations for actual CLI output format
+
+### 💡 Benefits
+
+- **True Coverage Visibility**: See which elements are NEVER tested by ANY test
+- **Prioritized Testing**: Focus on critical elements that need test coverage
+- **Team Collaboration**: Shared coverage data works across entire development teams
+- **Progress Tracking**: Monitor coverage improvement across multiple test runs
+- **Better ROI**: Focus testing efforts on elements that actually need coverage
+
 ## [2.0.0] - 2025-01-14
 
 ### 🎉 MAJOR RELEASE - Playwright-First Architecture

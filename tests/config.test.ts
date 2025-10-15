@@ -252,7 +252,7 @@ test.describe('Configuration Edge Cases', () => {
     expect(config.verbose).toBe(true);
     // The merge should handle null/undefined gracefully - check it doesn't crash
     expect(config).toBeDefined();
-    // undefined gets overridden, null gets overridden by merge - check the final value is the default
+    // null and undefined values should be skipped, preserving defaults from basic()
     expect(config.threshold).toBe(80); // Default from basic()
     expect(config.outputPath).toBe('./coverage-report'); // Default from basic()
   });

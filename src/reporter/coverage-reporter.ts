@@ -1,4 +1,5 @@
-import { TestSelector } from '../types';
+import { TestSelector, ElementType, SelectorType } from '../types';
+import { CoverageAggregator } from '../utils/coverage-aggregator';
 
 // Define basic types for reporter interface
 interface BaseTestEntry {
@@ -11,6 +12,7 @@ interface TestCase extends BaseTestEntry {
     file: string;
     line: number;
   };
+  title?: string;
 }
 
 interface Suite extends BaseTestEntry {
@@ -48,6 +50,7 @@ export class PlaywrightCoverageReporter {
   private options: CoverageReporterOptions;
   private testedSelectors: TestSelector[] = [];
   private testFiles: Set<string> = new Set();
+  private aggregator: CoverageAggregator;
 
   constructor(options: CoverageReporterOptions = {}) {
     try {
@@ -56,11 +59,18 @@ export class PlaywrightCoverageReporter {
         format: options.format || 'console',
         threshold: options.threshold || 80,
         verbose: options.verbose || false,
-        elementDiscovery: false, // Disabled in reporter - should be handled during tests
-        pageUrls: [], // Not used in reporter
-        runtimeDiscovery: false, // Disabled in reporter
-        captureScreenshots: false // Disabled in reporter
+        elementDiscovery: options.elementDiscovery || false,
+        pageUrls: options.pageUrls || [],
+        runtimeDiscovery: options.runtimeDiscovery || false,
+        captureScreenshots: options.captureScreenshots || false
       };
+
+      // Initialize coverage aggregator
+      this.aggregator = new CoverageAggregator(this.options.outputPath);
+
+      if (this.options.verbose) {
+        console.log('📊 Coverage aggregator initialized');
+      }
     } catch (error) {
       // Log error but don't throw to prevent breaking Playwright
       if (this.options?.verbose) {
@@ -102,7 +112,33 @@ export class PlaywrightCoverageReporter {
     if (!result.ok) return; // Skip failed tests
 
     // Extract selectors from test results and errors
-    await this.extractSelectorsFromTest(test, result);
+    const selectors = await this.extractSelectorsFromTest(test, result);
+
+    // Mark covered elements in the aggregator
+    if (selectors.length > 0) {
+      const pageElements = selectors.map(selector => ({
+        selector: selector.normalized,
+        type: this.mapSelectorTypeToElementType(selector.type),
+        text: selector.raw,
+        id: this.extractIdFromSelector(selector.normalized),
+        class: this.extractClassFromSelector(selector.normalized),
+        isVisible: true,
+        isEnabled: true,
+        discoverySource: 'test-execution' as const,
+        discoveryContext: `${Date.now()}-${test.location.file}`
+      }));
+
+      this.aggregator.markElementsCovered(
+        pageElements,
+        test.location.file,
+        test.title || 'unknown',
+        'test-interaction'
+      );
+
+      if (this.options.verbose) {
+        console.log(`✅ Marked ${selectors.length} elements as covered by ${test.title}`);
+      }
+    }
   }
 
   /**
@@ -205,43 +241,63 @@ export class PlaywrightCoverageReporter {
   /**
    * Extract selectors from individual test results
    */
-  private async extractSelectorsFromTest(test: TestCase, result: TestResult) {
+  private async extractSelectorsFromTest(test: TestCase, result: TestResult): Promise<TestSelector[]> {
+    const allSelectors: TestSelector[] = [];
+
     // Extract selectors from test steps and errors
     if (result.steps) {
       for (const step of result.steps) {
         // Enhanced selector extraction from step data
-        await this.extractSelectorsFromStep(step, test);
+        const stepSelectors = await this.extractSelectorsFromStep(step, test);
+        allSelectors.push(...stepSelectors);
       }
     }
 
     // Also parse the test file to get comprehensive selector coverage
-    await this.extractSelectorsFromTestFile(test.location.file);
+    const fileSelectors = await this.extractSelectorsFromTestFile(test.location.file);
+    allSelectors.push(...fileSelectors);
+
+    return allSelectors;
   }
 
   /**
    * Extract selectors from a test step
    */
-  private async extractSelectorsFromStep(step: any, test: TestCase) {
+  private async extractSelectorsFromStep(step: any, test: TestCase): Promise<TestSelector[]> {
+    const selectors: TestSelector[] = [];
+
     // Parse step title for selectors
-    const selectors = this.extractSelectorsFromText(step.title);
+    const titleSelectors = this.extractSelectorsFromText(step.title);
+    const titleTestSelectors = titleSelectors.map(selector => ({
+      raw: selector.raw,
+      normalized: selector.normalized,
+      type: selector.type,
+      lineNumber: test.location.line,
+      filePath: test.location.file,
+      context: step.title
+    }));
+    selectors.push(...titleTestSelectors);
 
     // Parse step data if available (includes screenshots, errors, etc.)
     if (step.error) {
       const errorSelectors = this.extractSelectorsFromText(step.error.message);
-      selectors.push(...errorSelectors);
-    }
-
-    // Add found selectors to our collection
-    for (const selector of selectors) {
-      this.testedSelectors.push({
+      const errorTestSelectors = errorSelectors.map(selector => ({
         raw: selector.raw,
         normalized: selector.normalized,
         type: selector.type,
         lineNumber: test.location.line,
         filePath: test.location.file,
         context: step.title
-      });
+      }));
+      selectors.push(...errorTestSelectors);
     }
+
+    // Add found selectors to our collection
+    for (const selector of selectors) {
+      this.testedSelectors.push(selector);
+    }
+
+    return selectors;
   }
 
   /**
@@ -250,9 +306,9 @@ export class PlaywrightCoverageReporter {
   private extractSelectorsFromText(text: string): Array<{
     raw: string;
     normalized: string;
-    type: any;
+    type: SelectorType;
   }> {
-    const selectors: Array<{ raw: string; normalized: string; type: any }> = [];
+    const selectors: Array<{ raw: string; normalized: string; type: SelectorType }> = [];
 
     // Playwright selector patterns
     const patterns = [
@@ -296,13 +352,14 @@ export class PlaywrightCoverageReporter {
   /**
    * Extract selectors from the test file itself (comprehensive analysis)
    */
-  private async extractSelectorsFromTestFile(testFile: string) {
+  private async extractSelectorsFromTestFile(testFile: string): Promise<TestSelector[]> {
     try {
       const { StaticAnalyzer } = await import('../analyzers/static-analyzer');
       const analyzer = new StaticAnalyzer();
       const fileSelectors = await analyzer.analyzeFile(testFile);
 
       // Merge with existing selectors, avoiding duplicates
+      const newSelectors: TestSelector[] = [];
       for (const selector of fileSelectors) {
         const exists = this.testedSelectors.some(existing =>
           existing.normalized === selector.normalized &&
@@ -311,12 +368,16 @@ export class PlaywrightCoverageReporter {
 
         if (!exists) {
           this.testedSelectors.push(selector);
+          newSelectors.push(selector);
         }
       }
+
+      return newSelectors;
     } catch (error) {
       if (this.options.verbose) {
         console.warn(`⚠️ Failed to extract selectors from test file ${testFile}:`, error);
       }
+      return [];
     }
   }
 
@@ -324,51 +385,271 @@ export class PlaywrightCoverageReporter {
    * Generate final coverage report
    */
   private async generateCoverageReport() {
-    // For now, just generate a basic report using the selectors we found
-    // In a proper implementation, element discovery should happen during test execution
-    // using Playwright's fixtures and test context, not in a separate reporter
+    try {
+      // Get aggregated coverage data
+      const aggregatedCoverage = this.aggregator.generateAggregatedCoverage();
+      const uncoveredWithRecommendations = this.aggregator.getUncoveredElementsWithRecommendations();
 
-    // Generate simple console report
-    if (this.options.format === 'console' || this.options.format === 'all') {
-      console.log(`\n📊 Coverage Report:`);
-      console.log(`  Test Files: ${this.testFiles.size}`);
-      console.log(`  Selectors Found: ${this.testedSelectors.length}`);
-      console.log(`  Coverage: 100% (based on selector analysis)`);
+      // Generate console report
+      if (this.options.format === 'console' || this.options.format === 'all') {
+        this.generateConsoleReport(aggregatedCoverage, uncoveredWithRecommendations);
+      }
 
-      if (this.options.verbose) {
-        console.log(`\n📝 Selector Types:`);
-        const stats = this.getSelectorTypeStatistics();
-        Object.entries(stats).forEach(([type, count]) => {
-          console.log(`  ${type}: ${count}`);
-        });
+      // Generate JSON report
+      if (this.options.format === 'json' || this.options.format === 'all') {
+        this.generateJsonReport(aggregatedCoverage, uncoveredWithRecommendations);
+      }
+
+      // Generate HTML report
+      if (this.options.format === 'html' || this.options.format === 'all') {
+        this.generateHtmlReport(aggregatedCoverage, uncoveredWithRecommendations);
+      }
+
+      // Check threshold
+      if (aggregatedCoverage.coveragePercentage < (this.options.threshold || 80)) {
+        console.log(`\n❌ Coverage ${aggregatedCoverage.coveragePercentage}% is below threshold ${this.options.threshold}%`);
+      } else {
+        console.log(`\n✅ Coverage ${aggregatedCoverage.coveragePercentage}% meets threshold ${this.options.threshold}%`);
+      }
+
+    } catch (error) {
+      console.warn('⚠️ Failed to generate coverage report:', error);
+    }
+  }
+
+  /**
+   * Generate console coverage report
+   */
+  private generateConsoleReport(aggregated: any, recommendations: any[]): void {
+    console.log('\n' + '='.repeat(60));
+    console.log('📊 CROSS-TEST COVERAGE REPORT');
+    console.log('='.repeat(60));
+
+    console.log(`\n📈 SUMMARY:`);
+    console.log(`  Total Interactive Elements: ${aggregated.totalElements}`);
+    console.log(`  Covered Elements: ${aggregated.coveredElements}`);
+    console.log(`  Uncovered Elements: ${aggregated.uncoveredElements.length}`);
+    console.log(`  Coverage Percentage: ${aggregated.coveragePercentage}%`);
+    console.log(`  Test Files: ${aggregated.testFiles.length}`);
+
+    console.log(`\n📋 COVERAGE BY TYPE:`);
+    Object.entries(aggregated.coverageByType).forEach(([type, stats]: [string, any]) => {
+      const coverageBar = '█'.repeat(Math.floor(stats.percentage / 5)) + '░'.repeat(20 - Math.floor(stats.percentage / 5));
+      console.log(`  ${type.padEnd(15)} ${stats.percentage.toString().padStart(3)}% ${coverageBar} (${stats.covered}/${stats.total})`);
+    });
+
+    console.log(`\n📄 COVERAGE BY PAGE:`);
+    Object.entries(aggregated.coverageByPage).forEach(([url, stats]: [string, any]) => {
+      const coverage = stats.total > 0 ? Math.round((stats.covered / stats.total) * 100) : 0;
+      console.log(`  ${url}: ${coverage}% (${stats.covered}/${stats.total} elements)`);
+    });
+
+    if (recommendations.length > 0) {
+      console.log(`\n🚨 HIGH PRIORITY UNCOVERED ELEMENTS:`);
+      const highPriority = recommendations.filter(r => r.priority === 'high').slice(0, 5);
+      highPriority.forEach(({ element, recommendation }) => {
+        console.log(`  ❌ ${element.selector} (${element.type}): ${recommendation}`);
+      });
+
+      if (recommendations.length > highPriority.length) {
+        console.log(`  ... and ${recommendations.length - highPriority.length} more elements`);
       }
     }
 
-    // Basic coverage report generation - can be extended later
+    console.log('\n' + '='.repeat(60));
+  }
+
+  /**
+   * Generate JSON coverage report
+   */
+  private generateJsonReport(aggregated: any, recommendations: any[]): void {
+    const fs = require('fs');
+    const path = require('path');
     const outputPath = this.options.outputPath || './coverage-report';
-    if (this.options.format === 'json' || this.options.format === 'all') {
-      const fs = require('fs');
-      const path = require('path');
 
-      if (!fs.existsSync(outputPath)) {
-        fs.mkdirSync(outputPath, { recursive: true });
-      }
-
-      const reportData = {
-        summary: {
-          testFiles: this.testFiles.size,
-          selectorsFound: this.testedSelectors.length,
-          coveragePercentage: 100
-        },
-        selectorTypes: this.getSelectorTypeStatistics(),
-        testedSelectors: this.testedSelectors
-      };
-
-      fs.writeFileSync(
-        path.join(outputPath, 'coverage-report.json'),
-        JSON.stringify(reportData, null, 2)
-      );
+    if (!fs.existsSync(outputPath)) {
+      fs.mkdirSync(outputPath, { recursive: true });
     }
+
+    const reportData = {
+      summary: {
+        totalElements: aggregated.totalElements,
+        coveredElements: aggregated.coveredElements,
+        uncoveredElements: aggregated.uncoveredElements.length,
+        coveragePercentage: aggregated.coveragePercentage,
+        testFiles: aggregated.testFiles.length,
+        lastUpdated: aggregated.lastUpdated
+      },
+      coverageByType: aggregated.coverageByType,
+      coverageByPage: aggregated.coverageByPage,
+      uncoveredElements: aggregated.uncoveredElements,
+      recommendations: recommendations,
+      testFiles: aggregated.testFiles,
+      generatedAt: new Date().toISOString()
+    };
+
+    fs.writeFileSync(
+      path.join(outputPath, 'coverage-report.json'),
+      JSON.stringify(reportData, null, 2)
+    );
+
+    // Generate separate file for recommendations
+    const recommendationsData = {
+      recommendations: recommendations,
+      summary: {
+        total: recommendations.length,
+        high: recommendations.filter(r => r.priority === 'high').length,
+        medium: recommendations.filter(r => r.priority === 'medium').length,
+        low: recommendations.filter(r => r.priority === 'low').length
+      }
+    };
+
+    fs.writeFileSync(
+      path.join(outputPath, 'coverage-recommendations.json'),
+      JSON.stringify(recommendationsData, null, 2)
+    );
+  }
+
+  /**
+   * Generate HTML coverage report
+   */
+  private generateHtmlReport(aggregated: any, recommendations: any[]): void {
+    const fs = require('fs');
+    const path = require('path');
+    const outputPath = this.options.outputPath || './coverage-report';
+
+    if (!fs.existsSync(outputPath)) {
+      fs.mkdirSync(outputPath, { recursive: true });
+    }
+
+    const html = this.generateHtmlContent(aggregated, recommendations);
+    fs.writeFileSync(path.join(outputPath, 'coverage-report.html'), html);
+  }
+
+  /**
+   * Generate HTML content for coverage report
+   */
+  private generateHtmlContent(aggregated: any, recommendations: any[]): string {
+    const coveragePercentage = aggregated.coveragePercentage;
+    const threshold = this.options.threshold || 80;
+    const status = coveragePercentage >= threshold ? 'PASS' : 'FAIL';
+    const statusColor = coveragePercentage >= threshold ? '#28a745' : '#dc3545';
+
+    return `
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Coverage Report</title>
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 0; padding: 20px; background: #f8f9fa; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 8px 8px 0 0; }
+        .status { font-size: 2.5em; font-weight: bold; margin: 0; }
+        .coverage-percentage { font-size: 3em; font-weight: bold; color: ${statusColor}; }
+        .content { padding: 30px; }
+        .summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
+        .metric { background: #f8f9fa; padding: 20px; border-radius: 8px; text-align: center; }
+        .metric-value { font-size: 2em; font-weight: bold; color: #495057; }
+        .metric-label { color: #6c757d; margin-top: 5px; }
+        .section { margin-bottom: 30px; }
+        .section h2 { color: #495057; border-bottom: 2px solid #e9ecef; padding-bottom: 10px; }
+        .coverage-bar { background: #e9ecef; border-radius: 4px; overflow: hidden; margin: 5px 0; }
+        .coverage-fill { height: 20px; background: linear-gradient(90deg, #28a745, #20c997); transition: width 0.3s ease; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e9ecef; }
+        th { background: #f8f9fa; font-weight: 600; }
+        .priority-high { color: #dc3545; font-weight: bold; }
+        .priority-medium { color: #ffc107; font-weight: bold; }
+        .priority-low { color: #6c757d; }
+        .code { background: #f8f9fa; padding: 2px 6px; border-radius: 3px; font-family: 'Monaco', 'Menlo', monospace; font-size: 0.9em; }
+        .recommendation { background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 4px; padding: 15px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1 class="status">${status}</h1>
+            <div class="coverage-percentage">${coveragePercentage}%</div>
+            <p>Coverage across all test files</p>
+        </div>
+
+        <div class="content">
+            <div class="summary">
+                <div class="metric">
+                    <div class="metric-value">${aggregated.totalElements}</div>
+                    <div class="metric-label">Total Elements</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">${aggregated.coveredElements}</div>
+                    <div class="metric-label">Covered Elements</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">${aggregated.uncoveredElements.length}</div>
+                    <div class="metric-label">Uncovered Elements</div>
+                </div>
+                <div class="metric">
+                    <div class="metric-value">${aggregated.testFiles.length}</div>
+                    <div class="metric-label">Test Files</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Coverage by Element Type</h2>
+                ${Object.entries(aggregated.coverageByType).map(([type, stats]: [string, any]) => `
+                    <div style="margin: 15px 0;">
+                        <strong>${type}:</strong> ${stats.percentage}% (${stats.covered}/${stats.total})
+                        <div class="coverage-bar">
+                            <div class="coverage-fill" style="width: ${stats.percentage}%"></div>
+                        </div>
+                    </div>
+                `).join('')}
+            </div>
+
+            <div class="section">
+                <h2>High Priority Uncovered Elements</h2>
+                ${recommendations.filter(r => r.priority === 'high').slice(0, 10).map(({ element, recommendation, suggestedTest }) => `
+                    <div class="recommendation">
+                        <h4><span class="code">${element.selector}</span> (${element.type})</h4>
+                        <p><strong>Issue:</strong> ${recommendation}</p>
+                        <details>
+                            <summary>Suggested Test</summary>
+                            <pre><code>${suggestedTest}</code></pre>
+                        </details>
+                    </div>
+                `).join('') || '<p>No high priority uncovered elements found! 🎉</p>'}
+            </div>
+
+            <div class="section">
+                <h2>All Uncovered Elements</h2>
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Selector</th>
+                            <th>Type</th>
+                            <th>Text</th>
+                            <th>Priority</th>
+                            <th>Recommendation</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${recommendations.map(({ element, recommendation, priority }) => `
+                            <tr>
+                                <td><span class="code">${element.selector}</span></td>
+                                <td>${element.type}</td>
+                                <td>${element.text || '-'}</td>
+                                <td><span class="priority-${priority}">${priority.toUpperCase()}</span></td>
+                                <td>${recommendation}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>`;
   }
 
   /**
@@ -386,8 +667,41 @@ export class PlaywrightCoverageReporter {
   }
 
   /**
+   * Map SelectorType to ElementType for coverage aggregation
+   */
+  private mapSelectorTypeToElementType(selectorType: SelectorType): ElementType {
+    // Default mapping based on typical usage patterns
+    switch (selectorType) {
+      case SelectorType.TEXT:
+      case SelectorType.LABEL:
+      case SelectorType.ROLE:
+        return ElementType.INTERACTIVE_ELEMENT;
+      case SelectorType.TEST_ID:
+        return ElementType.CLICKABLE_ELEMENT;
+      case SelectorType.ALT_TEXT:
+        return ElementType.CLICKABLE_ELEMENT;
+      case SelectorType.PLACEHOLDER:
+        return ElementType.INPUT;
+      case SelectorType.CSS:
+      case SelectorType.XPATH:
+      default:
+        return ElementType.CLICKABLE_ELEMENT; // Default to clickable for generic selectors
+    }
+  }
+
+  /**
    * Helper methods for selector processing
    */
+  private extractIdFromSelector(selector: string): string | undefined {
+    const idMatch = selector.match(/#([^#\s\[\]>]+)/);
+    return idMatch ? idMatch[1] : undefined;
+  }
+
+  private extractClassFromSelector(selector: string): string | undefined {
+    const classMatch = selector.match(/\.([^\s\[\]>]+)/);
+    return classMatch ? classMatch[1] : undefined;
+  }
+
   private looksLikeSelector(str: string): boolean {
     if (!str || str.length < 2) return false;
 
@@ -471,11 +785,8 @@ export class PlaywrightCoverageReporter {
     return normalized;
   }
 
-  private inferSelectorType(selector: string): any {
-    if (!selector) return 'unknown';
-
-    // Import SelectorType enum for consistency
-    const { SelectorType } = require('../types');
+  private inferSelectorType(selector: string): SelectorType {
+    if (!selector) return SelectorType.CSS; // Default to CSS for empty selectors
 
     // XPath patterns
     if (selector.startsWith('//') || selector.startsWith('/') || selector.startsWith('(')) {

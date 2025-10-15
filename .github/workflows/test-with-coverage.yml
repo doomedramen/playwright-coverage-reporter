@@ -6,6 +6,11 @@ on:
   pull_request:
     branches: [ main ]
 
+permissions:
+  contents: write
+  packages: write
+  pull-requests: write
+
 jobs:
   test:
     name: Run Tests with Coverage
@@ -208,29 +213,34 @@ jobs:
         # Get the version from package.json
         NEW_VERSION=$(node -p "require('./package.json').version")
 
-        # Create release using GitHub CLI
-        gh release create "v$NEW_VERSION" \
-          --title "Release v$NEW_VERSION" \
-          --notes "🎯 **Playwright Coverage Reporter v$NEW_VERSION**
+        # Create release using GitHub CLI with error handling
+        if gh release view "v$NEW_VERSION" >/dev/null 2>&1; then
+          echo "Release v$NEW_VERSION already exists, skipping..."
+        else
+          echo "Creating release v$NEW_VERSION..."
+          gh release create "v$NEW_VERSION" \
+            --title "Release v$NEW_VERSION" \
+            --notes "🎯 **Playwright Coverage Reporter v$NEW_VERSION**
 
-          ## 🚀 Installation
-          \`\`\`bash
-          npm install -D playwright-coverage-reporter
-          \`\`\`
+            ## 🚀 Installation
+            \`\`\`bash
+            npm install -D playwright-coverage-reporter
+            \`\`\`
 
-          ## ✨ What's new
-          - Automatic version bumping via pre-commit hooks
-          - Comprehensive UI element coverage analysis
-          - Istanbul/LCOV format support for CI/CD integration
-          - Multiple report formats (console, JSON, HTML)
-          - CLI with multiple commands and options
-          - Codecov integration for coverage tracking
+            ## ✨ What's new
+            - Automatic version bumping via pre-commit hooks
+            - Comprehensive UI element coverage analysis
+            - Istanbul/LCOV format support for CI/CD integration
+            - Multiple report formats (console, JSON, HTML)
+            - CLI with multiple commands and options
+            - Codecov integration for coverage tracking
 
-          ## 📖 Quick Start
-          \`\`\`bash
-          npx playwright-coverage analyze
-          \`\`\`
+            ## 📖 Quick Start
+            \`\`\`bash
+            npx playwright-coverage analyze
+            \`\`\`
 
-          📚 [Documentation](https://github.com/DoomedRamen/playwright-coverage-reporter#readme)"
+            📚 [Documentation](https://github.com/DoomedRamen/playwright-coverage-reporter#readme)" || echo "Failed to create release, but continuing..."
+        fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

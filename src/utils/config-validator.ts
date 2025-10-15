@@ -30,7 +30,7 @@ export interface ConfigDebugInfo {
  * Comprehensive configuration validator with detailed error reporting
  */
 export class ConfigValidator {
-  private static readonly VALID_FORMATS = ['console', 'json', 'html', 'lcov', 'all'];
+  private static readonly VALID_FORMATS = ['console', 'json', 'html', 'lcov', 'istanbul', 'all'];
   private static readonly DEFAULT_THRESHOLD = 80;
   private static readonly MAX_THRESHOLD = 100;
   private static readonly MIN_THRESHOLD = 0;

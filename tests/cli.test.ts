@@ -259,6 +259,11 @@ export default defineConfig({
 
     const configPath = path.join(tempDir, 'force-test.config.ts');
 
+    // Ensure clean state before test
+    if (fs.existsSync(configPath)) {
+      fs.unlinkSync(configPath);
+    }
+
     try {
       // Create initial file
       fs.writeFileSync(configPath, '// Initial content');

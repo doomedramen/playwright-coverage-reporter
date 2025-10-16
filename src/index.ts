@@ -4,9 +4,8 @@
 export { PlaywrightCoverageReporter } from './reporter/coverage-reporter';
 export type { CoverageReporterOptions } from './reporter/coverage-reporter';
 
-// Custom fixtures for enhanced element discovery
-export { test as coverageTest } from './fixtures/coverage-fixture';
-export type { CoverageOptions, CoverageData, CoverageFixture } from './fixtures/coverage-fixture';
+// Note: Fixtures are not exported by default to avoid @playwright/test duplicate imports
+// This prevents conflicts when importing the package in playwright.config.ts
 
 // Configuration helpers
 export * from './config/playwright-config';
@@ -22,5 +21,5 @@ export type {
   SelectorType
 } from './types';
 
-// CLI functionality
-export * from './cli';
+// Note: CLI functionality is handled separately via the bin entry in package.json
+// to avoid conflicts with Playwright's CLI resolution

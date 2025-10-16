@@ -38,24 +38,42 @@ npm install -D playwright-coverage-reporter
 
 ### Basic Usage
 
-1. **Add to your existing `playwright.config.ts`**:
+**Recommended: String-based Configuration** (most reliable)
 ```typescript
-import { defineConfig, devices } from '@playwright/test';
-import { PlaywrightCoverageReporter } from 'playwright-coverage-reporter';
+import { defineConfig } from '@playwright/test';
 
 export default defineConfig({
-  // ... your existing configuration
+  testDir: './tests',
   reporter: [
-    ['html'],  // Keep your existing reporters
+    ['list'],  // Keep your existing reporters
+    ['playwright-coverage-reporter', {
+      outputPath: './coverage-report',
+      threshold: 80,
+      verbose: true
+    }]
+  ],
+});
+```
+
+**Alternative: Class-based Configuration** (may have module resolution issues)
+```typescript
+import { defineConfig } from '@playwright/test';
+import PlaywrightCoverageReporter from 'playwright-coverage-reporter';
+
+export default defineConfig({
+  testDir: './tests',
+  reporter: [
+    ['list'],  // Keep your existing reporters
     [PlaywrightCoverageReporter, {
       outputPath: './coverage-report',
       threshold: 80,
       verbose: true
     }]
   ],
-  // ... rest of your config
 });
 ```
+
+> **Note**: The string-based approach is recommended as it's more robust and avoids potential module resolution issues in some environments.
 
 2. **Run your tests**:
 ```bash

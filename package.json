@@ -1,6 +1,6 @@
 {
   "name": "playwright-coverage-reporter",
-  "version": "2.0.48",
+  "version": "2.0.49",
   "description": "🎯 Native Playwright coverage reporter with runtime element discovery. Seamlessly integrates with Playwright test runner to analyze UI element coverage, discover interactive elements during test execution, and generate comprehensive reports with Istanbul support.",
   "main": "dist/reporter.js",
   "types": "dist/reporter.d.ts",

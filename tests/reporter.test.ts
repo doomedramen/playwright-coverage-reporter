@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
-import { PlaywrightCoverageReporter } from '../src/reporter/coverage-reporter';
-import { CoverageCalculator } from '../src/utils/coverage-calculator';
-import { PageElement, TestSelector, SelectorType, ElementType } from '../src/types';
+import { PlaywrightCoverageReporter } from '../dist/reporter/coverage-reporter';
+import { CoverageCalculator } from '../dist/utils/coverage-calculator';
+import { PageElement, TestSelector, SelectorType, ElementType } from '../dist/types';
 
 test.describe('PlaywrightCoverageReporter', () => {
   let reporter: PlaywrightCoverageReporter;

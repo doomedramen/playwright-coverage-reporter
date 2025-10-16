@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
-import { PlaywrightCoverageConfig, CoveragePresets } from '../src/config/playwright-config';
-import { PlaywrightCoverageReporter } from '../src/reporter/coverage-reporter';
+import { PlaywrightCoverageConfig, CoveragePresets } from '../dist/config/playwright-config';
+import { PlaywrightCoverageReporter } from '../dist/reporter/coverage-reporter';
 
 test.describe('PlaywrightCoverageConfig', () => {
   test('should create basic configuration', () => {

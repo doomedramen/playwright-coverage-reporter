@@ -424,24 +424,22 @@ export default defineConfig({
 });
 ```
 
-### Custom Fixtures
+### String-based Reporter Configuration
 
-For maximum control, you can use the custom fixtures approach:
+For simpler setup, you can use string-based configuration:
 
 ```typescript
-import { test, expect } from 'playwright-coverage-reporter/fixtures';
+import { defineConfig } from '@playwright/test';
 
-test('user flow with coverage tracking', async ({ page, trackInteraction }) => {
-  await page.goto('/login');
-
-  // Track interactions automatically
-  await trackInteraction('#email', 'fill');
-  await page.fill('#email', 'user@example.com');
-
-  await trackInteraction('button[type="submit"]', 'click');
-  await page.click('button[type="submit"]');
-
-  await expect(page.locator('[data-testid="dashboard"]')).toBeVisible();
+export default defineConfig({
+  reporter: [
+    ['list'],
+    ['playwright-coverage-reporter', {
+      outputPath: './coverage-report',
+      threshold: 80,
+      verbose: true
+    }]
+  ],
 });
 ```
 

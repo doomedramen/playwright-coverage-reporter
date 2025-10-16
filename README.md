@@ -5,7 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![codecov](https://codecov.io/gh/DoomedRamen/playwright-coverage-reporter/branch/main/graph/badge.svg)](https://codecov.io/gh/DoomedRamen/playwright-coverage-reporter)
 
-> 📊 **v2.0.26** - Native Playwright integration for UI element coverage analysis. Discover interactive elements during test execution and generate comprehensive coverage reports.
+> 📊 Native Playwright integration for UI element coverage analysis. Discover interactive elements during test execution and generate comprehensive coverage reports.
 
 Playwright Coverage Reporter helps you ensure your E2E tests are thoroughly testing all interactive elements on your web pages. It integrates directly with Playwright's test runner to analyze coverage during actual test execution.
 
@@ -49,7 +49,8 @@ export default defineConfig({
     ['playwright-coverage-reporter', {
       outputPath: './coverage-report',
       threshold: 80,
-      verbose: true
+      verbose: true,
+      elementDiscovery: true  // Enable cross-test coverage aggregation
     }]
   ],
 });
@@ -67,7 +68,8 @@ export default defineConfig({
     [PlaywrightCoverageReporter, {
       outputPath: './coverage-report',
       threshold: 80,
-      verbose: true
+      verbose: true,
+      elementDiscovery: true  // Enable cross-test coverage aggregation
     }]
   ],
 });

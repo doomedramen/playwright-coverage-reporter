@@ -79,7 +79,7 @@ export class PlaywrightCoverageReporter {
         format: options.format || 'console',
         threshold: options.threshold || 80,
         verbose: options.verbose || false,
-        elementDiscovery: options.elementDiscovery || false,
+        elementDiscovery: options.elementDiscovery ?? true,
         pageUrls: options.pageUrls || [],
         runtimeDiscovery: options.runtimeDiscovery || false,
         captureScreenshots: options.captureScreenshots || false,

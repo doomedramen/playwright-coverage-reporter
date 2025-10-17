@@ -39,6 +39,7 @@ jobs:
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
+        cache-dependency-path: '**/package-lock.json'
 
     - name: Install dependencies
       run: npm ci
@@ -127,14 +128,31 @@ jobs:
     - name: Build project
       run: npm run build
 
+    - name: Get Playwright version
+      id: playwright-version
+      run: |
+        VERSION=$(npx playwright --version | grep 'Version' | cut -d' ' -f2)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/ms-playwright
+          ~/Library/Caches/ms-playwright
+        key: playwright-browsers-${{ steps.playwright-version.outputs.version }}-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          playwright-browsers-${{ steps.playwright-version.outputs.version }}-
+          playwright-browsers-
+
     - name: Install Playwright browsers
       run: |
         case "${{ matrix.browser }}" in
           "e2e-chrome")
-            npx playwright install --with-deps chromium
+            npx playwright install chromium --with-deps
             ;;
           "e2e-firefox")
-            npx playwright install --with-deps firefox
+            npx playwright install firefox --with-deps
             ;;
         esac
 
@@ -247,6 +265,23 @@ jobs:
     - name: Build project
       run: npm run build
 
+    - name: Get Playwright version
+      id: playwright-version-coverage
+      run: |
+        VERSION=$(npx playwright --version | grep 'Version' | cut -d' ' -f2)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/ms-playwright
+          ~/Library/Caches/ms-playwright
+        key: playwright-browsers-${{ steps.playwright-version-coverage.outputs.version }}-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          playwright-browsers-${{ steps.playwright-version-coverage.outputs.version }}-
+          playwright-browsers-
+
     - name: Install Playwright browsers
       run: npx playwright install --with-deps
 
@@ -339,6 +374,23 @@ jobs:
 
     - name: Build project
       run: npm run build
+
+    - name: Get Playwright version
+      id: playwright-version-perf
+      run: |
+        VERSION=$(npx playwright --version | grep 'Version' | cut -d' ' -f2)
+        echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+    - name: Cache Playwright browsers
+      uses: actions/cache@v4
+      with:
+        path: |
+          ~/.cache/ms-playwright
+          ~/Library/Caches/ms-playwright
+        key: playwright-browsers-${{ steps.playwright-version-perf.outputs.version }}-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          playwright-browsers-${{ steps.playwright-version-perf.outputs.version }}-
+          playwright-browsers-
 
     - name: Install Playwright browsers
       run: npx playwright install --with-deps

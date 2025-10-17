@@ -7,7 +7,8 @@ import * as path from 'path';
 const program = new Command();
 
 // Get version from package.json
-const packageVersion = require('../package.json').version;
+const packageJson = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf-8'));
+const packageVersion = packageJson.version;
 
 program
   .name('playwright-coverage')
@@ -50,7 +51,7 @@ program
       console.log('🔧 Setting up Playwright coverage reporter...');
 
       // Generate Playwright configuration
-      const configContent = generatePlaywrightConfig(options);
+      const configContent = await generatePlaywrightConfig(options);
 
       fs.writeFileSync(configPath, configContent);
       console.log(`✅ Playwright configuration created: ${configPath}`);
@@ -456,7 +457,7 @@ function formatConfigAsJS(obj: any, indent: number = 2): string {
 /**
  * Generate Playwright configuration content
  */
-function generatePlaywrightConfig(options: {
+async function generatePlaywrightConfig(options: {
   type?: string;
   baseUrl?: string;
   threshold?: string;
@@ -465,8 +466,8 @@ function generatePlaywrightConfig(options: {
   noRuntimeDiscovery?: boolean;
   screenshots?: boolean;
   noScreenshots?: boolean;
-}): string {
-  const { CoveragePresets } = require('./config/playwright-config');
+}): Promise<string> {
+  const { CoveragePresets } = await import('./config/playwright-config');
 
   let coverageConfig;
   const type = options.type || 'development';
@@ -668,8 +669,8 @@ async function migrateToReporter(oldConfigPath: string, newConfigPath: string): 
 
   try {
     // Load old configuration
-    const oldConfig = require(path.resolve(oldConfigPath));
-    const { CoveragePresets } = require('./config/playwright-config');
+    const oldConfig = JSON.parse(fs.readFileSync(path.resolve(oldConfigPath), 'utf-8'));
+    const { CoveragePresets } = await import('./config/playwright-config');
 
     result.changes.push(`Loaded existing configuration from ${oldConfigPath}`);
 

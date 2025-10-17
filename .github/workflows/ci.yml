@@ -1,17 +1,29 @@
-name: CI
+name: CI/CD Pipeline
 
 on:
   push:
-    branches: [ main ]  # Only trigger CI on main branch
+    branches: [ main, develop ]
     tags:
-      - 'v*'  # Only trigger publishing on version tags
+      - 'v*'
+  pull_request:
+    branches: [ main, develop ]
   workflow_dispatch:  # Allow manual triggering
+  schedule:
+    # Run comprehensive coverage analysis daily at 2 AM UTC
+    - cron: '0 2 * * *'
 
 permissions:
-  contents: read
+  contents: write
+  packages: write
+  pull-requests: write
+
+env:
+  NODE_VERSION: '20.x'
 
 jobs:
-  test:
+  # Core testing jobs
+  unit-tests:
+    name: Unit Tests
     runs-on: ubuntu-latest
 
     strategy:
@@ -19,11 +31,10 @@ jobs:
         node-version: [18.x, 20.x]
 
     steps:
-    - uses: actions/checkout@v4
-      with:
-        token: ${{ secrets.GITHUB_TOKEN }}
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Setup Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
@@ -32,45 +43,389 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Build project
+      run: npm run build
+
+    - name: Run unit tests
+      run: npm run test:unit
+
+    - name: Run unit tests with coverage
+      run: npm run test:unit -- --coverage
+
+    - name: Upload coverage reports to Codecov
+      if: matrix.node-version == '20.x'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage/lcov.info
+        flags: unittests
+        name: codecov-umbrella
+
+    - name: Archive unit test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: unit-test-results-${{ matrix.node-version }}
+        path: |
+          test-results/
+          coverage/
+        retention-days: 7
+
+  integration-tests:
+    name: Integration Tests
+    runs-on: ubuntu-latest
+    needs: unit-tests
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      run: npm run build
+
+    - name: Run integration tests
+      run: npm run test:integration
+
+    - name: Archive integration test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: integration-test-results
+        path: |
+          test-results/
+        retention-days: 7
+
+  e2e-tests:
+    name: E2E Tests
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests]
+    strategy:
+      matrix:
+        browser: [e2e-chrome, e2e-firefox]
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      run: npm run build
+
+    - name: Install Playwright browsers
+      run: |
+        case "${{ matrix.browser }}" in
+          "e2e-chrome")
+            npx playwright install --with-deps chromium
+            ;;
+          "e2e-firefox")
+            npx playwright install --with-deps firefox
+            ;;
+        esac
+
+    - name: Start test server
+      run: |
+        npm run test:server &
+        sleep 5
+
+    - name: Run E2E tests with coverage
+      env:
+        COVERAGE_ENABLED: 'true'
+        COVERAGE_THRESHOLD: '80'
+      run: npm run test:e2e -- --project=${{ matrix.browser }}
+
+    - name: Archive E2E test results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: e2e-test-results-${{ matrix.browser }}
+        path: |
+          test-results/
+          coverage-report/
+          test-results/playwright-report/
+        retention-days: 7
+
+    - name: Upload E2E coverage to Codecov
+      if: matrix.browser == 'e2e-chrome'
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage-report/lcov.info
+        flags: e2e
+        name: codecov-umbrella
+
+  # Code quality checks
+  code-quality:
+    name: Code Quality
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run ESLint
+      run: npm run lint
+
+    - name: Run type check
+      run: npm run typecheck
+
+    - name: Check build
+      run: npm run build
+
+    - name: Archive lint results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: lint-results
+        path: |
+          .eslintcache
+        retention-days: 7
+
+  security-audit:
+    name: Security Audit
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Run security audit
+      run: npm audit --audit-level=high
+
+  # Coverage analysis (only on PRs and scheduled runs)
+  coverage-analysis:
+    name: Coverage Analysis
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests]
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      run: npm run build
+
     - name: Install Playwright browsers
       run: npx playwright install --with-deps
 
-    - name: Build
-      run: npm run build
+    - name: Start test server
+      run: |
+        npm run test:server &
+        sleep 5
 
-    - name: Test
-      run: npm run test:ci
+    - name: Run comprehensive test suite with coverage
+      env:
+        COVERAGE_ENABLED: 'true'
+        COVERAGE_THRESHOLD: '85'
+        DEBUG: 'false'
+      run: npm run test:all
 
-  publish:
-    needs: test
+    - name: Generate coverage summary
+      run: |
+        echo "## 📊 Coverage Summary" >> $GITHUB_STEP_SUMMARY
+        if [ -f "coverage-report/coverage-summary.json" ]; then
+          node -e "
+            const coverage = require('./coverage-report/coverage-summary.json');
+            console.log(\`- **Total Elements**: \${coverage.totalInteractiveElements}\`);
+            console.log(\`- **Covered Elements**: \${coverage.coveredElements}\`);
+            console.log(\`- **Coverage Percentage**: \${coverage.coveragePercentage}%\`);
+            console.log(\`- **Test Files**: \${coverage.testFiles}\`);
+          " >> $GITHUB_STEP_SUMMARY
+        fi
+
+    - name: Archive coverage report
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: comprehensive-coverage-report
+        path: |
+          coverage-report/
+          test-results/
+        retention-days: 30
+
+    - name: Comment PR with coverage
+      uses: actions/github-script@v7
+      if: github.event_name == 'pull_request'
+      with:
+        script: |
+          const fs = require('fs');
+          if (fs.existsSync('coverage-report/coverage-summary.json')) {
+            const coverage = JSON.parse(fs.readFileSync('coverage-report/coverage-summary.json', 'utf8'));
+
+            const comment = `
+            ## 📊 Playwright Coverage Report
+
+            | Metric | Value |
+            |--------|-------|
+            | Total Interactive Elements | ${coverage.totalInteractiveElements} |
+            | Covered Elements | ${coverage.coveredElements} |
+            | Coverage Percentage | ${coverage.coveragePercentage}% |
+            | Test Files | ${coverage.testFiles} |
+
+            ${coverage.coveragePercentage < 80 ? '⚠️ **Coverage below threshold (80%)**' : '✅ **Coverage threshold met**'}
+
+            [View detailed coverage report](${process.env.GITHUB_SERVER_URL}/${process.env.GITHUB_REPOSITORY}/actions/runs/${process.env.GITHUB_RUN_ID})
+            `;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          }
+
+  # Performance tests (only on main branch pushes)
+  performance-tests:
+    name: Performance Tests
     runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: unit-tests
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
 
     steps:
-    - uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-    - name: Use Node.js
+    - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20.x'
+        node-version: ${{ env.NODE_VERSION }}
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: npm ci
+
+    - name: Build project
+      run: npm run build
+
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps
+
+    - name: Start test server
+      run: |
+        npm run test:server &
+        sleep 5
+
+    - name: Run performance benchmarks
+      run: |
+        echo "⏱️ Measuring test performance..."
+
+        # Measure unit test performance
+        START_TIME=$(date +%s%N)
+        npm run test:unit
+        END_TIME=$(date +%s%N)
+        UNIT_DURATION=$((($END_TIME - $START_TIME) / 1000000))
+        echo "Unit tests took: ${UNIT_DURATION}ms"
+
+        # Measure integration test performance
+        START_TIME=$(date +%s%N)
+        npm run test:integration
+        END_TIME=$(date +%s%N)
+        INTEGRATION_DURATION=$((($END_TIME - $START_TIME) / 1000000))
+        echo "Integration tests took: ${INTEGRATION_DURATION}ms"
+
+        # Check if tests are taking too long
+        TOTAL_DURATION=$((UNIT_DURATION + INTEGRATION_DURATION))
+        echo "Total test duration: ${TOTAL_DURATION}ms"
+
+        if [ $TOTAL_DURATION -gt 300000 ]; then
+          echo "⚠️ Tests taking longer than 5 minutes"
+        fi
+
+    - name: Archive performance results
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: performance-test-results
+        path: performance-results/
+        retention-days: 7
+
+  # Build and publish (only on tags and main branch)
+  publish:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests, code-quality, security-audit]
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push' || startsWith(github.ref, 'refs/tags/')
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ env.NODE_VERSION }}
         registry-url: 'https://registry.npmjs.org'
         cache: 'npm'
 
     - name: Install dependencies
       run: npm ci
 
-    - name: Build
+    - name: Build project
       run: npm run build
 
+    - name: Test plugin installation
+      run: |
+        npm pack
+        mkdir test-installation
+        cd test-installation
+        npm init -y
+        npm install ../playwright-coverage-reporter-*.tgz
+        npx playwright-coverage --help
+
     - name: Publish to NPM
+      if: startsWith(github.ref, 'refs/tags/')
       run: npm publish
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     - name: Create GitHub Release
+      if: startsWith(github.ref, 'refs/tags/')
       run: |
-        # Get the version from package.json
-        NEW_VERSION=$(node -p "require('./package.json').version")
+        # Get the version from tag
+        NEW_VERSION=$(echo $GITHUB_REF | sed 's/refs\/tags\/v//')
 
         # Create release using GitHub CLI
         gh release create "v$NEW_VERSION" \
@@ -83,11 +438,12 @@ jobs:
           \`\`\`
 
           ## ✨ What's new
-          - Automatic version bumping via pre-commit hooks
           - Comprehensive UI element coverage analysis
           - Istanbul/LCOV format support for CI/CD integration
           - Multiple report formats (console, JSON, HTML)
           - CLI with multiple commands and options
+          - Cross-browser support (Chrome, Firefox)
+          - Performance optimizations and bug fixes
 
           ## 📖 Quick Start
           \`\`\`bash
@@ -97,3 +453,37 @@ jobs:
           📚 [Documentation](https://github.com/DoomedRamen/playwright-coverage-reporter#readme)"
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # Test summary
+  test-summary:
+    name: Test Summary
+    runs-on: ubuntu-latest
+    needs: [unit-tests, integration-tests, e2e-tests, code-quality, security-audit]
+    if: always()
+
+    steps:
+    - name: Generate test summary
+      run: |
+        echo "# CI/CD Pipeline Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## Pipeline Results" >> $GITHUB_STEP_SUMMARY
+        echo "- Unit Tests: ${{ needs.unit-tests.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Integration Tests: ${{ needs.integration-tests.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- E2E Tests (Chrome/Firefox): ${{ needs.e2e-tests.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Code Quality: ${{ needs.code-quality.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- Security Audit: ${{ needs.security-audit.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+
+        if [[ "${{ needs.unit-tests.result }}" == "success" &&
+              "${{ needs.integration-tests.result }}" == "success" &&
+              "${{ needs.e2e-tests.result }}" == "success" &&
+              "${{ needs.code-quality.result }}" == "success" &&
+              "${{ needs.security-audit.result }}" == "success" ]]; then
+          echo "✅ All checks passed successfully!" >> $GITHUB_STEP_SUMMARY
+
+          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
+            echo "🚀 Ready for deployment to npm (on tag)" >> $GITHUB_STEP_SUMMARY
+          fi
+        else
+          echo "❌ Some checks failed. Please review the individual job results." >> $GITHUB_STEP_SUMMARY
+        fi

@@ -190,20 +190,17 @@ export class StaticAnalyzer {
     // Remove quotes and normalize whitespace
     let normalized = selector.replace(/['"]/g, '').trim();
 
-    // Remove dynamic values
-    normalized = normalized.replace(/=["'][^"']*["']/g, '="..."');
-    normalized = normalized.replace(/\[.*?\]/g, (match) => {
-      // Keep attribute names but normalize values
-      if (match.includes('=')) {
-        const [attr] = match.split('=');
-        return `${attr}="..."`;
-      }
-      return match;
-    });
+    // Only normalize very dynamic content like UUIDs, timestamps, etc.
+    // Keep actual values like 'email', 'password', 'submit' as they are needed for matching
 
-    // Normalize text content
-    normalized = normalized.replace(/text=["'][^"']*["']/g, 'text="..."');
-    normalized = normalized.replace(/:\s*text\(["'][^"']*["']\)/g, ':text(...)');
+    // Normalize UUID-like patterns (32+ character hex strings)
+    normalized = normalized.replace(/[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}/gi, '...');
+
+    // Normalize timestamp patterns (13+ digit numbers)
+    normalized = normalized.replace(/\b\d{13,}\b/g, '...');
+
+    // Normalize very long random strings (20+ characters of random data)
+    normalized = normalized.replace(/\b[a-zA-Z0-9]{20,}\b/g, '...');
 
     return normalized;
   }

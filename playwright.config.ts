@@ -20,7 +20,7 @@ export default defineConfig({
       verbose: true,
       elementDiscovery: true,
       pageUrls: [],
-      runtimeDiscovery: false,
+      runtimeDiscovery: true,
       captureScreenshots: false
     }]
   ],

@@ -11,11 +11,21 @@ export interface AnalysisResult {
 
 export class StaticAnalyzer {
   private readonly selectorPatterns = {
-    // Playwright-specific patterns
-    pageGetBy: /(?:page|this\.page|locator)\.getBy\w+\(['"`]([^'"`]+)['"`]\)/g,
-    pageLocator: /(?:page|this\.page|locator)\.locator\(['"`]([^'"`]+)['"`]\)/g,
-    pageFill: /(?:page|this\.page)\.fill\(['"`]([^'"`]+)['"`]/g,
+    // Playwright getBy methods - these are reliable and specific
+    getByRole: /(?:page|this\.page|locator)\.getByRole\(['"`]([^'"`]+)['"`](?:,\s*\{[^}]*\})?\)/g,
+    getByText: /(?:page|this\.page|locator)\.getByText\(['"`]([^'"`]+)['"`]/g,
+    getByLabel: /(?:page|this\.page|locator)\.getByLabel\(['"`]([^'"`]+)['"`]/g,
+    getByPlaceholder: /(?:page|this\.page|locator)\.getByPlaceholder\(['"`]([^'"`]+)['"`]/g,
+    getByAltText: /(?:page|this\.page|locator)\.getByAltText\(['"`]([^'"`]+)['"`]/g,
+    getByTitle: /(?:page|this\.page|locator)\.getByTitle\(['"`]([^'"`]+)['"`]/g,
+    getByTestId: /(?:page|this\.page|locator)\.getByTestId\(['"`]([^'"`]+)['"`]/g,
+
+    // Playwright locator methods - only extract from actual locator() calls
+    locator: /(?:page|this\.page|locator)\.locator\(['"`]([^'"`]+)['"`]/g,
+
+    // Direct page method calls - only specific ones that take selectors
     pageClick: /(?:page|this\.page)\.click\(['"`]([^'"`]+)['"`]/g,
+    pageFill: /(?:page|this\.page)\.fill\(['"`]([^'"`]+)['"`]/g,
     pageType: /(?:page|this\.page)\.type\(['"`]([^'"`]+)['"`]/g,
     pageCheck: /(?:page|this\.page)\.check\(['"`]([^'"`]+)['"`]/g,
     pageUncheck: /(?:page|this\.page)\.uncheck\(['"`]([^'"`]+)['"`]/g,
@@ -24,31 +34,14 @@ export class StaticAnalyzer {
     pageFocus: /(?:page|this\.page)\.focus\(['"`]([^'"`]+)['"`]/g,
     pageBlur: /(?:page|this\.page)\.blur\(['"`]([^'"`]+)['"`]/g,
 
-    // Locator methods
-    locatorClick: /\.click\(\)/g,
-    locatorFill: /\.fill\([^)]+\)/g,
-    locatorType: /\.type\([^)]+\)/g,
-    locatorCheck: /\.check\(\)/g,
-    locatorUncheck: /\.uncheck\(\)/g,
-    locatorSelectOption: /\.selectOption\([^)]*\)/g,
-    locatorHover: /\.hover\(\)/g,
-    locatorFocus: /\.focus\(\)/g,
+    // XPath patterns - very specific pattern matching
+    xpathSelector: /(?:page|this\.page|locator)\.(?:xpath|locator)\(['"`](\/\/[^'"`]*|\/[^'"`]*|\([^'"`]*\))['"`]/g,
 
-    // Common patterns
-    getByRole: /getByRole\(['"`]([^'"`]+)['"`](?:,\s*\{[^}]*\})?\)/g,
-    getByText: /getByText\(['"`]([^'"`]+)['"`]/g,
-    getByLabel: /getByLabel\(['"`]([^'"`]+)['"`]/g,
-    getByPlaceholder: /getByPlaceholder\(['"`]([^'"`]+)['"`]/g,
-    getByAltText: /getByAltText\(['"`]([^'"`]+)['"`]/g,
-    getByTitle: /getByTitle\(['"`]([^'"`]+)['"`]/g,
-    getByTestId: /getByTestId\(['"`]([^'"`]+)['"`]/g,
+    // CSS selectors in specific contexts - must be used with actual Playwright methods
+    cssSelector: /(?:page|this\.page|locator)\.(?:\$\$\(\s*)?['"`]([.#\[a-zA-Z][a-zA-Z0-9\s\-\[\]>#+\.:^~=()]*?)['"`]/g,
 
-    // CSS and XPath patterns
-    cssSelector: /['"`]([a-zA-Z][a-zA-Z0-9\s\-\[\]>#+\.:^~=()]*)['"`]/g,
-    xpathSelector: /['"`](?:\/\/|\/)([^'"`]*(?:\[@[^'"`]*\][^'"`]*)*)['"`]/g,
-
-    // Chained locator patterns
-    chainedLocator: /locator\(['"`]([^'"`]+)['"`]\)/g
+    // Test ID patterns - very specific
+    testIdSelector: /(?:page|this\.page|locator)\.(?:getByTestId|locator)\(['"`]([^'"`]*data-test(?:id)?[^'"`]*)['"`]/g
   };
 
   /**
@@ -119,7 +112,7 @@ export class StaticAnalyzer {
       while ((match = regex.exec(line)) !== null) {
         const selector = match[1] || match[0]; // Some patterns capture the selector, others match the whole expression
 
-        if (selector && !this.isIgnoredSelector(selector)) {
+        if (selector && !this.isIgnoredSelector(selector) && this.isValidSelector(selector)) {
           const testSelector: TestSelector = {
             raw: selector,
             normalized: this.normalizeSelector(selector),
@@ -260,6 +253,84 @@ export class StaticAnalyzer {
   }
 
   /**
+   * Check if a selector is valid (actual CSS/DOM selector)
+   */
+  private isValidSelector(selector: string): boolean {
+    // Must have some selector-like characteristics
+    if (!selector || selector.length < 2) return false;
+
+    // Valid CSS selector patterns
+    const validPatterns = [
+      // ID selectors
+      /^#[a-zA-Z][\w-]*$/,
+      // Class selectors
+      /^\.[a-zA-Z][\w-]*$/,
+      // Tag selectors
+      /^[a-zA-Z][a-zA-Z]*$/,
+      // Attribute selectors
+      /^\[[a-zA-Z][\w-]*(?:=['"`][^'"`]*['"`])?\]$/,
+      // Combined selectors (tag.class, tag#id, etc.)
+      /^[a-zA-Z][a-zA-Z]*[.#\[\]]/,
+      // Pseudo-selectors
+      /:[a-zA-Z-]+/,
+      // Combinators
+      /[>+~]\s*[a-zA-Z.#\[]/,
+      // Complex selectors with multiple components
+      /[.#\[\]:>+~]/
+    ];
+
+    // Must match at least one valid pattern
+    const isValid = validPatterns.some(pattern => pattern.test(selector));
+
+    if (!isValid) return false;
+
+    // Additional validation for common selector formats
+    const invalidPatterns: (RegExp | ((s: string) => boolean))[] = [
+      // Test descriptions and sentences
+      /^[a-z]+\s+[a-z]+\s+/,
+      /^[A-Z][a-z]+\s+[a-z]+\s+/,
+      // URLs and paths
+      /^https?:\/\//,
+      /^\/\w+/,
+      // JavaScript expressions
+      /[=!<>]=/,
+      /function/,
+      /return/,
+      /var\s+\w+/,
+      /const\s+\w+/,
+      /let\s+\w+/,
+      // Programming keywords
+      /if\s*\(/,
+      /for\s*\(/,
+      /while\s*\(/,
+      // File paths
+      /^\.\.?\//,
+      // Common English phrases in test descriptions
+      /should\s+/,
+      /click\s+/,
+      /fill\s+/,
+      /type\s+/,
+      /expect\s+/,
+      /verify\s+/,
+      /check\s+/,
+      // Partial/incomplete selectors
+      /[.\[]$/,
+      /\['"`]$/,
+      /^\w+\s*$/,
+      // Too long to be a selector (likely description)
+      (s: string) => s.length > 100
+    ];
+
+    return !invalidPatterns.some(pattern => {
+      if (pattern instanceof RegExp) {
+        return pattern.test(selector);
+      } else {
+        return pattern(selector);
+      }
+    });
+  }
+
+  /**
    * Check if a selector should be ignored
    */
   private isIgnoredSelector(selector: string): boolean {
@@ -274,10 +345,48 @@ export class StaticAnalyzer {
       /expect\(/, // Test assertions
       /test\(/, // Test definitions
       /it\(/, // Test definitions
-      /describe\(/ // Test suites
+      /describe\(/, // Test suites
+      /should\s+/, // Test descriptions starting with "should"
+      /^[a-z]+\s+/, // Lowercase text that's likely descriptions
+      /^\w+\s+\w+\s+\w+/, // Multi-word lowercase text (likely descriptions)
+      /^[A-Z][a-z]+\s+[a-z]+/, // Sentences starting with capital letter
+      /login\s+successfully/,
+      /valid\s+credentials/,
+      /should\s+\w+/,
+      /click\s+the/,
+      /fill\s+the/,
+      /expect\s+the/,
+      /verify\s+that/,
+      /check\s+if/,
+      /ensure\s+that/,
+      /test\s+that/,
+      /assert\s+that/
     ];
 
-    return ignoredPatterns.some(pattern => pattern.test(selector));
+    // Additional content-based filtering
+    const contentIgnored = [
+      'should login successfully',
+      'valid credentials',
+      'invalid credentials',
+      'test user',
+      'test data',
+      'click button',
+      'fill input',
+      'submit form',
+      'navigate to',
+      'expect page',
+      'verify element',
+      'check that',
+      'assert that',
+      'should see',
+      'should not see',
+      'should contain',
+      'should have',
+      'should be'
+    ];
+
+    return ignoredPatterns.some(pattern => pattern.test(selector)) ||
+           contentIgnored.some(content => selector.toLowerCase().includes(content));
   }
 
   /**

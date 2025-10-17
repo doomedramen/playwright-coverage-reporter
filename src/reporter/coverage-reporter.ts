@@ -27,7 +27,9 @@ interface Suite extends BaseTestEntry {
 }
 
 interface TestResult {
-  ok: boolean;
+  ok?: boolean;
+  status?: string;
+  retry?: number;
   steps?: any[];
 }
 
@@ -107,6 +109,7 @@ export class PlaywrightCoverageReporter {
         }
       }
     } catch (error) {
+      console.error('❌ Error in reporter constructor:', error);
       this.handleInitializationError(error);
     }
   }
@@ -252,7 +255,9 @@ export class PlaywrightCoverageReporter {
    * Called when each test ends - this is where we track actual interactions
    */
   async onTestEnd(test: TestCase, result: TestResult) {
-    if (!result.ok) return; // Skip failed tests
+    // Check both ok and status - some Playwright versions use status instead of ok
+    const isSuccessful = result.ok === true || result.status === 'passed';
+    if (!isSuccessful) return; // Skip failed tests
 
     // Extract selectors from test results and errors
     const selectors = await this.extractSelectorsFromTest(test, result);

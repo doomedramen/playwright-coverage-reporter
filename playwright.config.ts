@@ -16,7 +16,7 @@ export default defineConfig({
     ['./dist/reporter/coverage-reporter.js', {
       outputPath: './coverage-report',
       format: 'console',
-      threshold: process.env.CI ? 0 : 80, // Don't fail on low coverage in CI
+      threshold: 50, // Moderate threshold for basic tests
       verbose: true,
       elementDiscovery: true,
       pageUrls: [],

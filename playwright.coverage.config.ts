@@ -24,11 +24,11 @@ export default defineConfig({
     ['json', { outputFile: 'test-results.json' }],
     ['list'], // Simple console reporter for test output
     [
-      PlaywrightCoverageReporter,
+      './dist/reporter/coverage-reporter.js',
       {
         outputPath: './integration-coverage-report',
         format: 'console', // Show coverage in console during tests
-        threshold: 70, // Lower threshold for integration tests
+        threshold: 80, // Enforce 80% coverage for our own code
         verbose: true, // Show detailed logs
         elementDiscovery: true, // Enable element discovery
         runtimeDiscovery: false, // Start with false for basic integration test

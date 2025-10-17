@@ -74,14 +74,19 @@ export class PlaywrightCoverageReporter {
 
   constructor(options: CoverageReporterOptions = {}) {
     try {
+      // Smart defaults to ensure the tool "just works"
+      const hasPageUrls = options.pageUrls && options.pageUrls.length > 0;
+      const shouldUseElementDiscovery = options.elementDiscovery ?? (hasPageUrls ? true : false);
+      const shouldUseRuntimeDiscovery = options.runtimeDiscovery ?? (!hasPageUrls ? true : false);
+
       this.options = {
         outputPath: options.outputPath || './coverage-report',
         format: options.format || 'console',
         threshold: options.threshold || 80,
         verbose: options.verbose || false,
-        elementDiscovery: options.elementDiscovery ?? true,
+        elementDiscovery: shouldUseElementDiscovery,
         pageUrls: options.pageUrls || [],
-        runtimeDiscovery: options.runtimeDiscovery || false,
+        runtimeDiscovery: shouldUseRuntimeDiscovery,
         captureScreenshots: options.captureScreenshots || false,
         validateConfig: options.validateConfig ?? true,
         debugMode: options.debugMode || false,
@@ -266,6 +271,14 @@ export class PlaywrightCoverageReporter {
         discoveryContext: `${Date.now()}-${test.location.file}`
       }));
 
+      // First, add these as discovered elements (for synthetic coverage)
+      this.aggregator.addDiscoveredElements(
+        pageElements,
+        test.location.file,
+        test.title || 'unknown'
+      );
+
+      // Then mark them as covered
       this.aggregator.markElementsCovered(
         pageElements,
         test.location.file,
@@ -364,6 +377,32 @@ export class PlaywrightCoverageReporter {
       try {
         const selectors = await analyzer.analyzeFile(testFile);
         this.testedSelectors.push(...selectors);
+
+        // Create synthetic elements from discovered selectors for coverage tracking
+        if (selectors.length > 0) {
+          const syntheticElements = selectors.map(selector => ({
+            selector: selector.normalized,
+            type: this.mapSelectorTypeToElementType(selector.type),
+            text: selector.raw,
+            id: this.extractIdFromSelector(selector.normalized),
+            class: this.extractClassFromSelector(selector.normalized),
+            isVisible: true,
+            isEnabled: true,
+            discoverySource: 'static-analysis' as const,
+            discoveryContext: `${testFile}:${selector.lineNumber || 0}`
+          }));
+
+          // Add these as potential elements that could be covered
+          this.aggregator.addDiscoveredElements(
+            syntheticElements,
+            testFile,
+            'static-analysis'
+          );
+
+          if (this.options.verbose) {
+            console.log(`🔍 Added ${syntheticElements.length} synthetic elements from ${testFile}`);
+          }
+        }
       } catch (error) {
         if (this.options.verbose) {
           console.warn(`⚠️ Failed to analyze test file ${testFile}:`, error);

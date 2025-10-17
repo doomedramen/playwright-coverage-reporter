@@ -25,7 +25,7 @@ Playwright Coverage Reporter helps you ensure your E2E tests are thoroughly test
 - 🔧 **Configuration Validation**: Comprehensive validation with actionable recommendations and debug mode
 - 🎯 **Element Filtering**: Advanced filtering system with presets for comprehensive, essential, and minimal coverage
 - 📊 **Performance Monitoring**: Built-in performance metrics and optimization recommendations
-- 🚀 **Zero Configuration**: Works out of the box with existing Playwright configs
+- 🚀 **Zero Configuration**: ✨ **NEW!** Works out of the box with automatic element discovery from test files
 - 🏗️ **TypeScript Support**: Full TypeScript support with comprehensive type definitions
 
 ## 🚀 Quick Start
@@ -36,9 +36,31 @@ Playwright Coverage Reporter helps you ensure your E2E tests are thoroughly test
 npm install -D playwright-coverage-reporter
 ```
 
-### Basic Usage
+### Zero Configuration Setup ✨
 
-**Recommended: String-based Configuration** (most reliable)
+**v2.1.0+ - Works out of the box!** The reporter now automatically discovers elements from your test files and requires zero configuration:
+
+```typescript
+import { defineConfig } from '@playwright/test';
+
+export default defineConfig({
+  testDir: './tests',
+  reporter: [
+    ['list'],  // Keep your existing reporters
+    ['playwright-coverage-reporter'] // Just add this line!
+  ],
+});
+```
+
+That's it! 🎉 The reporter will automatically:
+- ✅ Analyze your test files to discover selectors
+- ✅ Create synthetic elements for coverage tracking
+- ✅ Generate meaningful coverage reports
+- ✅ Work with any existing Playwright tests
+
+### Basic Usage (with customization)
+
+If you want to customize the behavior, you can add options:
 ```typescript
 import { defineConfig } from '@playwright/test';
 

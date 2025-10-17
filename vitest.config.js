@@ -1,3 +1,4 @@
+/// <reference types="vitest" />
 import { defineConfig } from 'vitest/config';
 import { resolve } from 'path';
 
@@ -90,6 +91,6 @@ export default defineConfig({
 
   // Define global constants
   define: {
-    __TEST__: true
+    __TEST__: 'true'
   }
 });

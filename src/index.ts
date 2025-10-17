@@ -1,6 +1,7 @@
 // Playwright Coverage Reporter - Main Exports
 
-// Primary export: Playwright Reporter
+// Primary export: Playwright Reporter (default export for Playwright compatibility)
+export { default } from './reporter/coverage-reporter';
 export { PlaywrightCoverageReporter } from './reporter/coverage-reporter';
 export type { CoverageReporterOptions } from './reporter/coverage-reporter';
 

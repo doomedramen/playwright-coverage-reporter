@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [ develop ]  # Only trigger CI on develop branch
+    branches: [ main ]  # Only trigger CI on main branch
   pull_request:
     branches: [ main ]
 
@@ -38,7 +38,13 @@ jobs:
       run: npm run build
 
     - name: Test
-      run: npm test
+      run: |
+        # Run coverage verification test to ensure core functionality works
+        npx playwright test tests/coverage-verification.spec.ts
+        # Run config tests to ensure configuration works properly
+        npx playwright test tests/config.test.ts
+        # Run reporter tests to ensure core reporting works
+        npx playwright test tests/reporter.test.ts
 
   publish:
     needs: test

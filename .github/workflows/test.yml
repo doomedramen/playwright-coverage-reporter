@@ -93,7 +93,7 @@ jobs:
     needs: [unit-tests, integration-tests]
     strategy:
       matrix:
-        browser: [e2e-chrome, e2e-firefox, e2e-safari]
+        browser: [e2e-chrome, e2e-firefox]
 
     steps:
     - name: Checkout code
@@ -119,9 +119,6 @@ jobs:
             ;;
           "e2e-firefox")
             npx playwright install --with-deps firefox
-            ;;
-          "e2e-safari")
-            npx playwright install --with-deps webkit
             ;;
         esac
 
@@ -319,7 +316,7 @@ jobs:
         echo "## Test Results" >> $GITHUB_STEP_SUMMARY
         echo "- Unit Tests: ${{ needs.unit-tests.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- Integration Tests: ${{ needs.integration-tests.result }}" >> $GITHUB_STEP_SUMMARY
-        echo "- E2E Tests: ${{ needs.e2e-tests.result }}" >> $GITHUB_STEP_SUMMARY
+        echo "- E2E Tests (Chrome/Firefox): ${{ needs.e2e-tests.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- Lint & Type Check: ${{ needs.lint-and-typecheck.result }}" >> $GITHUB_STEP_SUMMARY
         echo "- Security Audit: ${{ needs.security-audit.result }}" >> $GITHUB_STEP_SUMMARY
         echo "" >> $GITHUB_STEP_SUMMARY

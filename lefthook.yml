@@ -15,6 +15,10 @@ pre-commit:
     build:
       run: npm run build
 
+    # Validate bundle before committing (ensures Playwright compatibility)
+    validate-bundle:
+      run: npm run test:bundle
+
     # Bump version on commits that change source files (but skip version bump commits)
     version-bump:
       run: npx -y package-bump@latest patch --stage

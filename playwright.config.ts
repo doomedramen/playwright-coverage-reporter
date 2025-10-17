@@ -24,24 +24,18 @@ export default defineConfig({
     ['html', { outputFolder: 'playwright-html-report', open: 'never' }],
     ['json', { outputFile: 'test-results/results.json' }],
     ['junit', { outputFile: 'test-results/results.xml' }],
-    [
-      PlaywrightCoverageReporter, {
-        outputPath: './coverage-report',
-        format: ['json', 'html', 'console'],
-        threshold: process.env.COVERAGE_THRESHOLD ? parseInt(process.env.COVERAGE_THRESHOLD) : 80,
-        verbose: process.env.CI !== 'true',
-        elementDiscovery: true,
-        pageUrls: [
-          'http://localhost:3000/login',
-          'http://localhost:3000/dashboard',
-          'http://localhost:3000/dynamic-content'
-        ],
-        runtimeDiscovery: true,
-        captureScreenshots: process.env.CI === 'true',
-        elementFilter: 'interactive',
-        debugMode: process.env.DEBUG === 'true'
-      }
-    ]
+    ['./src/reporter/coverage-reporter.ts', {
+      outputPath: './coverage-report',
+      format: 'console',
+      threshold: process.env.COVERAGE_THRESHOLD ? parseInt(process.env.COVERAGE_THRESHOLD) : 80,
+      verbose: process.env.CI !== 'true',
+      elementDiscovery: false, // Disable to prevent interference with page JavaScript
+      pageUrls: [], // Disable page discovery since it breaks E2E tests
+      runtimeDiscovery: false, // Disable runtime discovery to prevent JavaScript injection
+      captureScreenshots: process.env.CI === 'true',
+      elementFilter: 'interactive',
+      debugMode: process.env.DEBUG === 'true'
+    }]
   ] : [
     ['list'],
     ['html', { outputFolder: 'playwright-html-report', open: 'never' }],
@@ -121,17 +115,7 @@ export default defineConfig({
     }
   ],
 
-  // Web server configuration for local testing (only when running with coverage)
-  ...(process.env.COVERAGE_ENABLED === 'true' ? {
-    webServer: {
-      command: 'npm run test:server',
-      url: 'http://localhost:3000',
-      reuseExistingServer: !process.env.CI,
-      timeout: 120000,
-      stdout: 'ignore',
-      stderr: 'pipe'
-    }
-  } : {}),
+  // Web server disabled since we use page.setContent() for E2E tests
 
   // Global test timeout
   timeout: 60000,

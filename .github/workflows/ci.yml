@@ -141,10 +141,23 @@ jobs:
           ~/.cache/ms-playwright
           ~/Library/Caches/ms-playwright
         key: playwright-browsers-${{ steps.playwright-version.outputs.version }}-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          playwright-browsers-${{ steps.playwright-version.outputs.version }}-
+          playwright-browsers-
+
+    - name: Install missing browsers (fallback)
+      run: |
+        echo "Checking browser installation..."
+        if ! npx playwright install --dry-run ${{ matrix.browser == 'e2e-chrome' && 'chromium' || 'firefox' }} 2>/dev/null; then
+          echo "Installing ${{ matrix.browser == 'e2e-chrome' && 'chromium' || 'firefox' }}..."
+          npx playwright install ${{ matrix.browser == 'e2e-chrome' && 'chromium' || 'firefox' }}
+        else
+          echo "✅ ${{ matrix.browser == 'e2e-chrome' && 'chromium' || 'firefox' }} already available"
+        fi
 
     - name: Verify browser installation
       run: |
-        echo "✅ Browsers restored from cache"
+        echo "✅ Browsers verified"
         npx playwright --version
 
     - name: Start test server
@@ -269,10 +282,23 @@ jobs:
           ~/.cache/ms-playwright
           ~/Library/Caches/ms-playwright
         key: playwright-browsers-${{ steps.playwright-version-coverage.outputs.version }}-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          playwright-browsers-${{ steps.playwright-version-coverage.outputs.version }}-
+          playwright-browsers-
+
+    - name: Install missing browsers (fallback)
+      run: |
+        echo "Checking browser installation for coverage analysis..."
+        if ! npx playwright install --dry-run chromium firefox 2>/dev/null; then
+          echo "Installing browsers for coverage analysis..."
+          npx playwright install chromium firefox
+        else
+          echo "✅ Browsers already available"
+        fi
 
     - name: Verify browser installation
       run: |
-        echo "✅ Browsers restored from cache"
+        echo "✅ Browsers verified for coverage analysis"
         npx playwright --version
 
     - name: Start test server
@@ -425,10 +451,23 @@ jobs:
           ~/.cache/ms-playwright
           ~/Library/Caches/ms-playwright
         key: playwright-browsers-${{ steps.playwright-version-perf.outputs.version }}-${{ hashFiles('package-lock.json') }}
+        restore-keys: |
+          playwright-browsers-${{ steps.playwright-version-perf.outputs.version }}-
+          playwright-browsers-
+
+    - name: Install missing browsers (fallback)
+      run: |
+        echo "Checking browser installation for performance tests..."
+        if ! npx playwright install --dry-run chromium 2>/dev/null; then
+          echo "Installing chromium for performance tests..."
+          npx playwright install chromium
+        else
+          echo "✅ Chromium already available"
+        fi
 
     - name: Verify browser installation
       run: |
-        echo "✅ Browsers restored from cache"
+        echo "✅ Browsers verified for performance tests"
         npx playwright --version
 
     - name: Start test server

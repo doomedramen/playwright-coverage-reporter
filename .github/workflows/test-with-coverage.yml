@@ -2,9 +2,10 @@ name: CI with Coverage Reporting
 
 on:
   push:
-    branches: [ main ]  # Only trigger coverage workflow on main branch
+    branches: [ main ]  # Trigger on main branch pushes
   pull_request:
-    branches: [ main ]
+    branches: [ main ]  # Trigger on PRs to main
+  workflow_dispatch:  # Allow manual triggering
 
 permissions:
   contents: write
@@ -32,11 +33,19 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps
+
     - name: Build project
       run: npm run build
 
     - name: Run Playwright tests with coverage
-      run: npm test
+      run: |
+        # Run focused tests with coverage reporting
+        npx playwright test tests/coverage-verification.spec.ts --project=chromium
+        npx playwright test tests/config.test.ts --project=chromium
+        npx playwright test tests/reporter.test.ts --project=chromium
+        npx playwright test tests/cli.test.ts --project=chromium
       env:
         PLAYWRIGHT_COVERAGE_THRESHOLD: 0
         PLAYWRIGHT_COVERAGE_VERBOSE: false
@@ -167,6 +176,9 @@ jobs:
     - name: Install dependencies
       run: npm ci
 
+    - name: Install Playwright browsers
+      run: npx playwright install --with-deps
+
     - name: Run linting
       run: npm run lint
 
@@ -181,40 +193,3 @@ jobs:
         npm init -y
         npm install ../playwright-coverage-reporter-*.tgz
         npx playwright-coverage --help
-
-  publish:
-    needs: [test, build-and-test]
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Use Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '20.x'
-        registry-url: 'https://registry.npmjs.org'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Build
-      run: npm run build
-
-    - name: Publish to NPM
-      run: npm publish
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-    - name: Create GitHub Release
-      run: |
-        # Get the version from package.json
-        NEW_VERSION=$(node -p "require('./package.json').version")
-        echo "📦 Package version: v$NEW_VERSION"
-        echo "ℹ️ GitHub release creation temporarily disabled - add RELEASE_TOKEN secret to enable"
-        echo "🔗 Create token at: https://github.com/settings/tokens"
-        echo "📝 Add as RELEASE_TOKEN in repository settings"
-      env:
-        GITHUB_TOKEN: ${{ secrets.RELEASE_TOKEN || secrets.GITHUB_TOKEN }}

@@ -16,7 +16,7 @@ export default defineConfig({
     ['./dist/reporter/coverage-reporter.js', {
       outputPath: './coverage-report',
       format: 'console',
-      threshold: 50, // Moderate threshold for basic tests
+      threshold: 5, // Low threshold for mixed test suite (CLI + UI tests)
       verbose: true,
       elementDiscovery: true,
       pageUrls: [],

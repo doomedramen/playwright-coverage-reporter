@@ -183,17 +183,23 @@ export class CoverageAggregator {
       // Add to test coverage
       this.testCoverage.get(testFile)!.add(key);
 
-      // Update coverage record
-      if (this.coverageRecords.has(key)) {
-        const record = this.coverageRecords.get(key)!;
+      // Try to find matching coverage record with flexible matching
+      let matchedRecord = this.coverageRecords.get(key);
 
+      // If exact match not found, try flexible matching
+      if (!matchedRecord) {
+        matchedRecord = this.findMatchingRecord(element);
+      }
+
+      // Update coverage record
+      if (matchedRecord) {
         // Check if this test already covered this element
-        const existingCoverage = record.coveredBy.find(
+        const existingCoverage = matchedRecord.coveredBy.find(
           coverage => coverage.testFile === testFile && coverage.testName === testName
         );
 
         if (!existingCoverage) {
-          record.coveredBy.push({
+          matchedRecord.coveredBy.push({
             testFile,
             testName,
             timestamp,
@@ -211,29 +217,15 @@ export class CoverageAggregator {
    */
   generateAggregatedCoverage(): AggregatedCoverage {
     const allRecords = Array.from(this.coverageRecords.values());
-    const coveredSelectors = new Set<string>();
-
-    // Collect all covered selectors from all tests
-    for (const [, selectors] of this.testCoverage.entries()) {
-      for (const selector of selectors) {
-        coveredSelectors.add(selector);
-      }
-    }
-
-    const coveredElements = allRecords.filter(record =>
-      coveredSelectors.has(this.getElementKey(record))
-    );
-
-    const uncoveredElements = allRecords.filter(record =>
-      !coveredSelectors.has(this.getElementKey(record))
-    );
+    const coveredElements = allRecords.filter(record => record.coveredBy.length > 0);
+    const uncoveredElements = allRecords.filter(record => record.coveredBy.length === 0);
 
     // Calculate coverage by type
     const coverageByType: Record<string, { total: number; covered: number; percentage: number }> = {};
     const typeGroups = this.groupBy(allRecords, 'type');
 
     for (const [type, elements] of Object.entries(typeGroups)) {
-      const covered = elements.filter(el => coveredSelectors.has(this.getElementKey(el))).length;
+      const covered = elements.filter(el => el.coveredBy.length > 0).length;
       coverageByType[type] = {
         total: elements.length,
         covered,
@@ -359,6 +351,72 @@ export class CoverageAggregator {
   }
 
   /**
+   * Clean up duplicate selectors and merge coverage data
+   */
+  cleanupDuplicates(): void {
+    const selectorMap = new Map<string, CoverageRecord>();
+    const mergedTestCoverage = new Map<string, Set<string>>();
+
+    // Merge records with flexible selector matching
+    for (const record of this.coverageRecords.values()) {
+      const key = this.normalizeSelectorForMatching(record.selector);
+      const existing = selectorMap.get(key);
+
+      if (!existing) {
+        selectorMap.set(key, record);
+      } else {
+        // Merge coverage data
+        existing.coveredBy.push(...record.coveredBy);
+        existing.discoveredIn.push(...record.discoveredIn);
+
+        // Update timestamps
+        existing.firstSeenAt = Math.min(existing.firstSeenAt, record.firstSeenAt);
+        existing.lastSeenAt = Math.max(existing.lastSeenAt, record.lastSeenAt);
+      }
+    }
+
+    // Remove duplicate coverage entries
+    for (const record of selectorMap.values()) {
+      const uniqueCoverage = new Map<string, typeof record.coveredBy[0]>();
+
+      record.coveredBy.forEach(coverage => {
+        const key = `${coverage.testFile}:${coverage.testName}`;
+        uniqueCoverage.set(key, coverage);
+      });
+
+      record.coveredBy = Array.from(uniqueCoverage.values());
+    }
+
+    // Update the data structures
+    this.coverageRecords.clear();
+    selectorMap.forEach((record, key) => {
+      this.coverageRecords.set(this.getElementKey(record), record);
+    });
+
+    // Rebuild test coverage map
+    for (const [testFile, selectors] of this.testCoverage.entries()) {
+      const normalizedSelectors = new Set<string>();
+
+      for (const selector of selectors) {
+        const record = this.coverageRecords.get(selector);
+        if (record) {
+          normalizedSelectors.add(this.getElementKey(record));
+        }
+      }
+
+      if (normalizedSelectors.size > 0) {
+        mergedTestCoverage.set(testFile, normalizedSelectors);
+      }
+    }
+
+    this.testCoverage = mergedTestCoverage;
+
+    console.log(`🧹 Cleaned up duplicates: ${selectorMap.size} unique selectors remaining`);
+
+    this.saveData();
+  }
+
+  /**
    * Get coverage statistics for a specific test file
    */
   getTestFileCoverage(testFile: string): {
@@ -389,6 +447,94 @@ export class CoverageAggregator {
    */
   private getElementKey(element: PageElement | CoverageRecord): string {
     return `${element.selector}-${element.type}`;
+  }
+
+  /**
+   * Find matching coverage record with flexible matching
+   */
+  private findMatchingRecord(element: PageElement): CoverageRecord | null {
+    const allRecords = Array.from(this.coverageRecords.values());
+
+    // Try to find a record that matches this element
+    for (const record of allRecords) {
+      if (this.isElementMatch(element, record)) {
+        return record;
+      }
+    }
+
+    return null;
+  }
+
+  /**
+   * Check if two elements match (flexible matching)
+   */
+  private isElementMatch(element1: PageElement, record: CoverageRecord): boolean {
+    // Exact selector match
+    if (element1.selector === record.selector) {
+      return true;
+    }
+
+    // Type match and selector similarity
+    if (element1.type === record.type) {
+      // Check for selector patterns that are equivalent
+      const normalized1 = this.normalizeSelectorForMatching(element1.selector);
+      const normalized2 = this.normalizeSelectorForMatching(record.selector);
+
+      if (normalized1 === normalized2) {
+        return true;
+      }
+
+      // Check for CSS attribute selectors that might be quoted differently
+      if (this.areAttributeSelectorsEqual(element1.selector, record.selector)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  /**
+   * Normalize selector for matching (more aggressive than display normalization)
+   */
+  private normalizeSelectorForMatching(selector: string): string {
+    // Remove quotes around attribute values
+    let normalized = selector.replace(/(\w+)=['"`]([^'"`]*)['"`]/g, '$1=$2');
+
+    // Remove outer quotes
+    if ((normalized.startsWith('"') && normalized.endsWith('"')) ||
+        (normalized.startsWith("'") && normalized.endsWith("'"))) {
+      normalized = normalized.slice(1, -1);
+    }
+
+    // Normalize whitespace
+    normalized = normalized.replace(/\s+/g, ' ').trim();
+
+    return normalized;
+  }
+
+  /**
+   * Check if two attribute selectors are equal (ignoring quote differences)
+   */
+  private areAttributeSelectorsEqual(selector1: string, selector2: string): boolean {
+    // Extract attribute selectors from both
+    const attrs1 = selector1.match(/\[[^\]]+\]/g) || [];
+    const attrs2 = selector2.match(/\[[^\]]+\]/g) || [];
+
+    if (attrs1.length !== attrs2.length) {
+      return false;
+    }
+
+    // Normalize each attribute selector and compare
+    for (let i = 0; i < attrs1.length; i++) {
+      const normalized1 = attrs1[i].replace(/(\w+)=['"`]([^'"`]*)['"`]/g, '$1=$2');
+      const normalized2 = attrs2[i].replace(/(\w+)=['"`]([^'"`]*)['"`]/g, '$1=$2');
+
+      if (normalized1 !== normalized2) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   private groupBy<T>(array: T[], key: string): Record<string, T[]> {

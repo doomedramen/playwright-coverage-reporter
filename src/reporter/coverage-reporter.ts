@@ -60,6 +60,7 @@ export interface CoverageReporterOptions {
   cacheResults?: boolean; // Enable result caching
   maxConcurrency?: number; // Maximum concurrent operations
   timeoutMs?: number; // Operation timeout
+  cleanupDuplicates?: boolean; // Clean up duplicate selectors on startup
 }
 
 export class PlaywrightCoverageReporter {
@@ -96,7 +97,8 @@ export class PlaywrightCoverageReporter {
         enableErrorRecovery: options.enableErrorRecovery ?? true,
         cacheResults: options.cacheResults ?? true,
         maxConcurrency: options.maxConcurrency,
-        timeoutMs: options.timeoutMs || 30000
+        timeoutMs: options.timeoutMs || 30000,
+        cleanupDuplicates: options.cleanupDuplicates ?? true // Enable by default
       };
 
       // Enhanced initialization with validation and performance optimization
@@ -161,6 +163,11 @@ export class PlaywrightCoverageReporter {
 
       // Initialize coverage aggregator
       this.aggregator = new CoverageAggregator(this.options.outputPath);
+
+      // Clean up duplicate selectors if enabled
+      if (this.options.cleanupDuplicates) {
+        this.aggregator.cleanupDuplicates();
+      }
 
       // Start performance monitoring
       this.performanceOptimizer.startSession();
@@ -935,35 +942,38 @@ export class PlaywrightCoverageReporter {
   private normalizeSelector(selector: string): string {
     if (!selector) return '';
 
-    // Remove quotes
-    let normalized = selector.replace(/['"]/g, '').trim();
+    // Remove surrounding quotes but preserve internal quotes for attribute values
+    let normalized = selector.trim();
+
+    // Remove outer quotes if present (but not inner quotes)
+    if ((normalized.startsWith('"') && normalized.endsWith('"')) ||
+        (normalized.startsWith("'") && normalized.endsWith("'"))) {
+      normalized = normalized.slice(1, -1);
+    }
 
     // Normalize whitespace
     normalized = normalized.replace(/\s+/g, ' ');
 
-    // Normalize dynamic values
-    normalized = normalized.replace(/=["'][^"']*["']/g, '="..."');
-    normalized = normalized.replace(/\[.*?\]/g, (match) => {
-      // Keep attribute names but normalize values
-      if (match.includes('=')) {
-        const [attr] = match.split('=');
-        return `${attr}="..."`;
-      }
-      return match;
-    });
+    // Only normalize values for specific patterns that shouldn't affect selector matching
+    // Keep attribute values as they are for proper selector matching
+    normalized = normalized.replace(/\$\{[^}]*\}/g, '...'); // Template literals
+    normalized = normalized.replace(/\+\s*['"`][^'"`]*['"`]/g, '...'); // String concatenation
 
-    // Normalize text content in getByText and similar
-    normalized = normalized.replace(/text=["'][^"']*["']/g, 'text="..."');
-    normalized = normalized.replace(/:\s*text\(["'][^"']*["']\)/g, ':text(...)');
-
-    // Normalize role attributes
-    normalized = normalized.replace(/role=["'][^"']*["']/g, 'role="..."');
-
-    // Truncate very long selectors for readability
-    if (normalized.length > 100) {
-      normalized = normalized.substring(0, 97) + '...';
+    // Only normalize text content in getByText for display purposes (not for matching)
+    // Don't normalize attributes that are used for DOM matching
+    if (normalized.includes('text=') && !normalized.includes('[')) {
+      normalized = normalized.replace(/text=["'][^"']*["']/g, 'text="..."');
+    }
+    if (normalized.includes(':text(')) {
+      normalized = normalized.replace(/:\s*text\(["'][^"']*["']\)/g, ':text(...)');
     }
 
+    // Only normalize role attributes in getByRole for display purposes
+    if (normalized.startsWith('getByRole') && normalized.includes('role=')) {
+      normalized = normalized.replace(/role=["'][^"']*["']/g, 'role="..."');
+    }
+
+    // Don't truncate selectors - they need to remain intact for proper matching
     return normalized;
   }
 

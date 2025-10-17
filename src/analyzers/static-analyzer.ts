@@ -108,7 +108,7 @@ export class StaticAnalyzer {
         const testSelector: TestSelector = {
           raw: selector,
           normalized: this.normalizeSelector(selector),
-          type: this.determineSelectorType(selector, 'extracted'),
+          type: this.determineSelectorType(selector, line),
           lineNumber,
           filePath,
           context: this.extractContext(line, line.indexOf(selector))
@@ -129,7 +129,24 @@ export class StaticAnalyzer {
 
     // Look for Playwright method patterns and extract their quoted arguments
     const playwrightPatterns = [
-      /(?:page|this\.page|locator)\.(?:click|fill|type|check|uncheck|selectOption|hover|focus|blur|locator|getByRole|getByText|getByLabel|getByPlaceholder|getByAltText|getByTitle|getByTestId|xpath)\s*\(\s*(['"`])/g,
+      // Specific patterns for different Playwright methods
+      // getByRole with both syntaxes: getByRole('role', {name: 'value'}) and getByRole({name: 'value'})
+      /(?:page|this\.page|locator)\.getByRole\(\s*['"`]([^'"`]*?)['"`]\s*,\s*\{[^}]*name\s*:\s*(['"`])([^'"`]*?)\2/g,
+      /(?:page|this\.page|locator)\.getByRole\(\s*\{[^}]*name\s*:\s*(['"`])([^'"`]*?)\1/g,
+      /(?:page|this\.page|locator)\.getByLabel\(\s*(['"`])([^'"`]*?)\1/g,
+      /(?:page|this\.page|locator)\.getByText\(\s*(['"`])([^'"`]*?)\1/g,
+      /(?:page|this\.page|locator)\.getByPlaceholder\(\s*(['"`])([^'"`]*?)\1/g,
+      /(?:page|this\.page|locator)\.getByAltText\(\s*(['"`])([^'"`]*?)\1/g,
+      /(?:page|this\.page|locator)\.getByTitle\(\s*(['"`])([^'"`]*?)\1/g,
+      /(?:page|this\.page|locator)\.getByTestId\(\s*(['"`])([^'"`]*?)\1/g,
+      // General patterns for other methods
+      /(?:page|this\.page|locator)\.(?:click|fill|type|check|uncheck|selectOption|hover|focus|blur|xpath|waitForSelector)\s*\(\s*(['"`])/g,
+      // Locator patterns (both direct and chained)
+      /(?:page|this\.page|locator)\.locator\(\s*(['"`])/g,
+      // Chained locator patterns (specifically for .locator().locator())
+      /\.locator\(\s*(['"`])/g,
+      // Function call patterns - extract string parameters that look like selectors
+      /\w+\.\w+\(\s*(?:page|this\.page|locator)\s*,\s*(['"`])([^'"`]*?)\1/g,
       /(?:page|this\.page|locator)\.\$\$\(\s*(['"`])/g
     ];
 
@@ -138,12 +155,23 @@ export class StaticAnalyzer {
       pattern.lastIndex = 0;
 
       while ((match = pattern.exec(line)) !== null) {
-        const quoteChar = match[1]; // The quote character that started the string
-        const startIndex = match.index + match[0].length;
+        if (match[3]) {
+          // For getByRole with role parameter: getByRole('role', {name: 'value'})
+          // match[3] contains the extracted text (the name value)
+          selectors.push(match[3]);
+        } else if (match[2]) {
+          // For specific patterns with capture groups (getByRole with object, getByLabel, etc.)
+          // match[2] contains the extracted text directly
+          selectors.push(match[2]);
+        } else {
+          // For general patterns, fall back to the old method
+          const quoteChar = match[1]; // The quote character that started the string
+          const startIndex = match.index + match[0].length;
 
-        const selector = this.extractQuotedString(line, startIndex, quoteChar);
-        if (selector) {
-          selectors.push(selector);
+          const selector = this.extractQuotedString(line, startIndex, quoteChar);
+          if (selector) {
+            selectors.push(selector);
+          }
         }
       }
     });
@@ -208,38 +236,38 @@ export class StaticAnalyzer {
   /**
    * Determine selector type based on pattern and content
    */
-  private determineSelectorType(selector: string, patternName: string): SelectorType {
+  private determineSelectorType(selector: string, line: string): SelectorType {
     // XPath patterns
     if (selector.startsWith('//') || selector.startsWith('/') || selector.startsWith('(')) {
       return SelectorType.XPATH;
     }
 
-    // Playwright getBy patterns
-    if (selector.includes('getByRole')) {
+    // Check the line context for Playwright method calls
+    if (line.includes('getByRole(')) {
       return SelectorType.ROLE;
     }
 
-    if (selector.includes('getByText')) {
+    if (line.includes('getByText(')) {
       return SelectorType.TEXT;
     }
 
-    if (selector.includes('getByLabel')) {
+    if (line.includes('getByLabel(')) {
       return SelectorType.LABEL;
     }
 
-    if (selector.includes('getByPlaceholder')) {
+    if (line.includes('getByPlaceholder(')) {
       return SelectorType.PLACEHOLDER;
     }
 
-    if (selector.includes('getByAltText')) {
+    if (line.includes('getByAltText(')) {
       return SelectorType.ALT_TEXT;
     }
 
-    if (selector.includes('getByTitle')) {
+    if (line.includes('getByTitle(')) {
       return SelectorType.ALT_TEXT;
     }
 
-    if (selector.includes('getByTestId')) {
+    if (line.includes('getByTestId(')) {
       return SelectorType.TEST_ID;
     }
 
@@ -249,27 +277,27 @@ export class StaticAnalyzer {
     }
 
     // Text patterns
-    if (selector.includes('text=') || patternName.includes('Text')) {
+    if (selector.includes('text=') || line.includes('getByText(')) {
       return SelectorType.TEXT;
     }
 
     // Role patterns
-    if (selector.includes('role=') || patternName.includes('Role')) {
+    if (selector.includes('role=') || line.includes('getByRole(')) {
       return SelectorType.ROLE;
     }
 
     // Label patterns
-    if (selector.includes('label=') || patternName.includes('Label')) {
+    if (selector.includes('label=') || line.includes('getByLabel(')) {
       return SelectorType.LABEL;
     }
 
     // Placeholder patterns
-    if (selector.includes('placeholder=') || patternName.includes('Placeholder')) {
+    if (selector.includes('placeholder=') || line.includes('getByPlaceholder(')) {
       return SelectorType.PLACEHOLDER;
     }
 
     // Alt text patterns
-    if (selector.includes('alt=') || patternName.includes('Alt')) {
+    if (selector.includes('alt=') || line.includes('getByAltText(')) {
       return SelectorType.ALT_TEXT;
     }
 
@@ -303,14 +331,14 @@ export class StaticAnalyzer {
   }
 
   /**
-   * Check if a selector is valid (actual CSS/DOM selector)
+   * Check if a selector is valid (CSS selector OR Playwright text-based selector)
    */
   private isValidSelector(selector: string): boolean {
     // Must have some selector-like characteristics
     if (!selector || selector.length < 2) return false;
 
     // Valid CSS selector patterns
-    const validPatterns = [
+    const cssPatterns = [
       // ID selectors
       /^#[a-zA-Z][\w-]*$/,
       // Class selectors
@@ -329,40 +357,56 @@ export class StaticAnalyzer {
       /[.#\[\]:>+~]/
     ];
 
-    // Must match at least one valid pattern
-    const isValid = validPatterns.some(pattern => pattern.test(selector));
+    // Text-based selector patterns (for getByLabel, getByRole, getByText, etc.)
+    const textPatterns = [
+      // Contains spaces (human-readable text)
+      /\s+/,
+      // Contains common words
+      /\b(remember|forgot|password|login|submit|click|button|input|email|username|dashboard|settings|profile|menu|home|about|contact|search|filter|sort|add|remove|edit|delete|save|cancel|ok|yes|no)\b/i,
+      // Reasonable length (not too short like single letters, not too long like descriptions)
+      /^.{2,50}$/,
+      // Not just programming syntax
+      /^[^{}()\[\]=<>!|&;]+$/
+    ];
 
-    if (!isValid) return false;
+    // Must match at least one CSS pattern OR text pattern
+    const isCssValid = cssPatterns.some(pattern => pattern.test(selector));
+    const isTextValid = textPatterns.some(pattern => pattern.test(selector));
+
+    if (!isCssValid && !isTextValid) return false;
 
     // Additional validation for common selector formats
     const invalidPatterns: (RegExp | ((s: string) => boolean))[] = [
-      // Test descriptions and sentences
-      /^[a-z]+\s+[a-z]+\s+/,
-      /^[A-Z][a-z]+\s+[a-z]+\s+/,
-      // URLs and paths
+      // URLs and paths (always invalid)
       /^https?:\/\//,
       /^\/\w+/,
-      // JavaScript expressions
+      /^\.\.?\//,
+      // JavaScript expressions (always invalid)
       /[=!<>]=/,
       /function/,
       /return/,
       /var\s+\w+/,
       /const\s+\w+/,
       /let\s+\w+/,
-      // Programming keywords
       /if\s*\(/,
       /for\s*\(/,
       /while\s*\(/,
-      // File paths
-      /^\.\.?\//,
-      // Common English phrases in test descriptions
-      /should\s+/,
-      /click\s+/,
-      /fill\s+/,
-      /type\s+/,
-      /expect\s+/,
-      /verify\s+/,
-      /check\s+/,
+      // Test description patterns that are definitely not selectors
+      /^should\s+/,
+      /should\s+login\s+successfully/,
+      /should\s+show/,
+      /should\s+have/,
+      /should\s+be/,
+      /valid\s+credentials/,
+      /invalid\s+credentials/,
+      /click\s+the/,
+      /fill\s+the/,
+      /expect\s+the/,
+      /verify\s+that/,
+      /check\s+if/,
+      /ensure\s+that/,
+      /test\s+that/,
+      /assert\s+that/,
       // Partial/incomplete selectors
       /[.\[]$/,
       /\['"`]$/,
@@ -371,6 +415,52 @@ export class StaticAnalyzer {
       (s: string) => s.length > 100
     ];
 
+    // First check if it's a text-based selector (more lenient validation)
+    const isTextBased = textPatterns.some(pattern => pattern.test(selector));
+    if (isTextBased) {
+      // For text-based selectors, still apply strict validation rules
+      // URLs and paths should always be rejected, even for text-based selectors
+      const textInvalidPatterns = [
+        /^https?:\/\//,
+        /^\/\w+/,
+        /^\.\.?\//,
+        // JavaScript expressions should always be rejected
+        /[=!<>]=/,
+        /function/,
+        /return/,
+        /var\s+\w+/,
+        /const\s+\w+/,
+        /let\s+\w+/,
+        /if\s*\(/,
+        /for\s*\(/,
+        /while\s*\(/,
+        // Test descriptions that are definitely not selectors
+        /should\s+login\s+successfully/,
+        /should\s+show/,
+        /should\s+have/,
+        /should\s+be/,
+        /valid\s+credentials/,
+        /invalid\s+credentials/,
+        /click\s+the/,
+        /fill\s+the/,
+        /expect\s+the/,
+        /verify\s+that/,
+        /check\s+if/,
+        /ensure\s+that/,
+        /test\s+that/,
+        /assert\s+that/,
+        (s: string) => s.length > 100
+      ];
+      return !textInvalidPatterns.some(pattern => {
+        if (pattern instanceof RegExp) {
+          return pattern.test(selector);
+        } else {
+          return pattern(selector);
+        }
+      });
+    }
+
+    // For CSS selectors, use stricter validation
     return !invalidPatterns.some(pattern => {
       if (pattern instanceof RegExp) {
         return pattern.test(selector);
@@ -384,6 +474,68 @@ export class StaticAnalyzer {
    * Check if a selector should be ignored
    */
   private isIgnoredSelector(selector: string): boolean {
+    // First check if it's a text-based selector (be more lenient)
+    const textPatterns = [
+      // Contains spaces (human-readable text)
+      /\s+/,
+      // Contains common words that are likely used in getBy methods
+      /\b(remember|forgot|password|login|submit|click|button|input|email|username|dashboard|settings|profile|menu|home|about|contact|search|filter|sort|add|remove|edit|delete|save|cancel|ok|yes|no|user|admin|theme|registration|loading|content|item|list|form|validation|error|success|warning|alert|navigation|header|footer|main|section|article|sidebar|tab|panel|modal|dialog|popup|dropdown|select|option|checkbox|radio|link|anchor|text|label|placeholder|title|alt|role|name|value|data|test|id|class|style)\b/i,
+      // Reasonable length
+      /^.{2,50}$/
+    ];
+
+    const isTextBased = textPatterns.some(pattern => pattern.test(selector));
+
+    if (isTextBased) {
+      // For text-based selectors, only filter out obvious non-selectors
+      const textIgnoredPatterns = [
+        /^https?:\/\//, // URLs
+        /^about:blank/, // About blank
+        /^data:/, // Data URLs
+        /^javascript:/, // JavaScript URLs
+        /^\s*$/, // Empty selectors
+        /^[{}[\]()]+$/, // Just brackets
+        /console\.log/, // Console logs
+        /expect\(/, // Test assertions
+        /test\(/, // Test definitions
+        /it\(/, // Test definitions
+        /describe\(/, // Test suites
+        // Test descriptions that are definitely not selectors
+        /^should\s+login\s+successfully/,
+        /^should\s+show/,
+        /^should\s+have/,
+        /^should\s+be/,
+        /^valid\s+credentials/,
+        /^invalid\s+credentials/,
+        /click\s+the\s+/,
+        /fill\s+the\s+/,
+        /expect\s+the\s+/,
+        /verify\s+that\s+/,
+        /check\s+if\s+/,
+        /ensure\s+that\s+/,
+        /test\s+that\s+/,
+        /assert\s+that\s+/
+      ];
+
+      const contentIgnored = [
+        'should login successfully',
+        'valid credentials',
+        'invalid credentials',
+        'click the button',
+        'fill the input',
+        'expect the page',
+        'verify that the',
+        'check that the',
+        'assert that the',
+        'should see the',
+        'should not see the'
+      ];
+
+      return textIgnoredPatterns.some(pattern => pattern.test(selector)) ||
+             contentIgnored.some(content => selector.toLowerCase().includes(content));
+    }
+
+    // For non-text-based selectors (CSS selectors), be more strict
     const ignoredPatterns = [
       /^https?:\/\//, // URLs
       /^about:blank/, // About blank
@@ -413,30 +565,7 @@ export class StaticAnalyzer {
       /assert\s+that/
     ];
 
-    // Additional content-based filtering
-    const contentIgnored = [
-      'should login successfully',
-      'valid credentials',
-      'invalid credentials',
-      'test user',
-      'test data',
-      'click button',
-      'fill input',
-      'submit form',
-      'navigate to',
-      'expect page',
-      'verify element',
-      'check that',
-      'assert that',
-      'should see',
-      'should not see',
-      'should contain',
-      'should have',
-      'should be'
-    ];
-
-    return ignoredPatterns.some(pattern => pattern.test(selector)) ||
-           contentIgnored.some(content => selector.toLowerCase().includes(content));
+    return ignoredPatterns.some(pattern => pattern.test(selector));
   }
 
   /**

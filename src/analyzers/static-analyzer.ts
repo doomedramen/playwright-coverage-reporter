@@ -12,36 +12,34 @@ export interface AnalysisResult {
 export class StaticAnalyzer {
   private readonly selectorPatterns = {
     // Playwright getBy methods - these are reliable and specific
-    getByRole: /(?:page|this\.page|locator)\.getByRole\(['"`]([^'"`]+)['"`](?:,\s*\{[^}]*\})?\)/g,
-    getByText: /(?:page|this\.page|locator)\.getByText\(['"`]([^'"`]+)['"`]/g,
-    getByLabel: /(?:page|this\.page|locator)\.getByLabel\(['"`]([^'"`]+)['"`]/g,
-    getByPlaceholder: /(?:page|this\.page|locator)\.getByPlaceholder\(['"`]([^'"`]+)['"`]/g,
-    getByAltText: /(?:page|this\.page|locator)\.getByAltText\(['"`]([^'"`]+)['"`]/g,
-    getByTitle: /(?:page|this\.page|locator)\.getByTitle\(['"`]([^'"`]+)['"`]/g,
-    getByTestId: /(?:page|this\.page|locator)\.getByTestId\(['"`]([^'"`]+)['"`]/g,
+    getByRole: /(?:page|this\.page|locator)\.getByRole\(\s*['"`]([^'"`]+)['"`]/g,
+    getByText: /(?:page|this\.page|locator)\.getByText\(\s*['"`]([^'"`]+)['"`]/g,
+    getByLabel: /(?:page|this\.page|locator)\.getByLabel\(\s*['"`]([^'"`]+)['"`]/g,
+    getByPlaceholder: /(?:page|this\.page|locator)\.getByPlaceholder\(\s*['"`]([^'"`]+)['"`]/g,
+    getByAltText: /(?:page|this\.page|locator)\.getByAltText\(\s*['"`]([^'"`]+)['"`]/g,
+    getByTitle: /(?:page|this\.page|locator)\.getByTitle\(\s*['"`]([^'"`]+)['"`]/g,
+    getByTestId: /(?:page|this\.page|locator)\.getByTestId\(\s*['"`]([^'"`]+)['"`]/g,
 
-    // Playwright locator methods - only extract from actual locator() calls
-    locator: /(?:page|this\.page|locator)\.locator\(['"`]([^'"`]+)['"`]/g,
+    // Playwright locator methods and direct page method calls
+    locator: /(?:page|this\.page|locator)\.locator\(\s*['"`]([^'"`]+)['"`]/g,
+    pageClick: /(?:page|this\.page)\.click\(\s*['"`]([^'"`]+)['"`]/g,
+    pageFill: /(?:page|this\.page)\.fill\(\s*['"`]([^'"`]+)['"`]/g,
+    pageType: /(?:page|this\.page)\.type\(\s*['"`]([^'"`]+)['"`]/g,
+    pageCheck: /(?:page|this\.page)\.check\(\s*['"`]([^'"`]+)['"`]/g,
+    pageUncheck: /(?:page|this\.page)\.uncheck\(\s*['"`]([^'"`]+)['"`]/g,
+    pageSelectOption: /(?:page|this\.page)\.selectOption\(\s*['"`]([^'"`]+)['"`]/g,
+    pageHover: /(?:page|this\.page)\.hover\(\s*['"`]([^'"`]+)['"`]/g,
+    pageFocus: /(?:page|this\.page)\.focus\(\s*['"`]([^'"`]+)['"`]/g,
+    pageBlur: /(?:page|this\.page)\.blur\(\s*['"`]([^'"`]+)['"`]/g,
 
-    // Direct page method calls - only specific ones that take selectors
-    pageClick: /(?:page|this\.page)\.click\(['"`]([^'"`]+)['"`]/g,
-    pageFill: /(?:page|this\.page)\.fill\(['"`]([^'"`]+)['"`]/g,
-    pageType: /(?:page|this\.page)\.type\(['"`]([^'"`]+)['"`]/g,
-    pageCheck: /(?:page|this\.page)\.check\(['"`]([^'"`]+)['"`]/g,
-    pageUncheck: /(?:page|this\.page)\.uncheck\(['"`]([^'"`]+)['"`]/g,
-    pageSelectOption: /(?:page|this\.page)\.selectOption\(['"`]([^'"`]+)['"`]/g,
-    pageHover: /(?:page|this\.page)\.hover\(['"`]([^'"`]+)['"`]/g,
-    pageFocus: /(?:page|this\.page)\.focus\(['"`]([^'"`]+)['"`]/g,
-    pageBlur: /(?:page|this\.page)\.blur\(['"`]([^'"`]+)['"`]/g,
+    // XPath patterns
+    xpathSelector: /(?:page|this\.page|locator)\.(?:xpath|locator)\(\s*['"`](\/\/[^'"`]*|\/[^'"`]*|\([^'"`]*\))['"`]/g,
 
-    // XPath patterns - very specific pattern matching
-    xpathSelector: /(?:page|this\.page|locator)\.(?:xpath|locator)\(['"`](\/\/[^'"`]*|\/[^'"`]*|\([^'"`]*\))['"`]/g,
+    // CSS selectors
+    cssSelector: /(?:page|this\.page|locator)\.(?:\$\$\(\s*)?['"`]([.#\[a-zA-Z][a-zA-Z0-9\s\-\[\]>#+\.:^~=()]*)['"`]/g,
 
-    // CSS selectors in specific contexts - must be used with actual Playwright methods
-    cssSelector: /(?:page|this\.page|locator)\.(?:\$\$\(\s*)?['"`]([.#\[a-zA-Z][a-zA-Z0-9\s\-\[\]>#+\.:^~=()]*?)['"`]/g,
-
-    // Test ID patterns - very specific
-    testIdSelector: /(?:page|this\.page|locator)\.(?:getByTestId|locator)\(['"`]([^'"`]*data-test(?:id)?[^'"`]*)['"`]/g
+    // Test ID patterns
+    testIdSelector: /(?:page|this\.page|locator)\.(?:getByTestId|locator)\(\s*['"`]([^'"`]*data-test(?:id)?[^'"`]*)['"`]/g
   };
 
   /**
@@ -102,32 +100,87 @@ export class StaticAnalyzer {
   private extractSelectorsFromLine(line: string, filePath: string, lineNumber: number): TestSelector[] {
     const selectors: TestSelector[] = [];
 
-    // Extract using different patterns
-    Object.entries(this.selectorPatterns).forEach(([patternName, regex]) => {
+    // Extract selectors using a more robust approach
+    const extractedSelectors = this.extractQuotedStringsFromLine(line);
+
+    extractedSelectors.forEach(selector => {
+      if (selector && !this.isIgnoredSelector(selector) && this.isValidSelector(selector)) {
+        const testSelector: TestSelector = {
+          raw: selector,
+          normalized: this.normalizeSelector(selector),
+          type: this.determineSelectorType(selector, 'extracted'),
+          lineNumber,
+          filePath,
+          context: this.extractContext(line, line.indexOf(selector))
+        };
+
+        selectors.push(testSelector);
+      }
+    });
+
+    return selectors;
+  }
+
+  /**
+   * Extract quoted strings from a line, handling nested quotes properly
+   */
+  private extractQuotedStringsFromLine(line: string): string[] {
+    const selectors: string[] = [];
+
+    // Look for Playwright method patterns and extract their quoted arguments
+    const playwrightPatterns = [
+      /(?:page|this\.page|locator)\.(?:click|fill|type|check|uncheck|selectOption|hover|focus|blur|locator|getByRole|getByText|getByLabel|getByPlaceholder|getByAltText|getByTitle|getByTestId|xpath)\s*\(\s*(['"`])/g,
+      /(?:page|this\.page|locator)\.\$\$\(\s*(['"`])/g
+    ];
+
+    playwrightPatterns.forEach(pattern => {
       let match;
+      pattern.lastIndex = 0;
 
-      // Reset regex lastIndex
-      regex.lastIndex = 0;
+      while ((match = pattern.exec(line)) !== null) {
+        const quoteChar = match[1]; // The quote character that started the string
+        const startIndex = match.index + match[0].length;
 
-      while ((match = regex.exec(line)) !== null) {
-        const selector = match[1] || match[0]; // Some patterns capture the selector, others match the whole expression
-
-        if (selector && !this.isIgnoredSelector(selector) && this.isValidSelector(selector)) {
-          const testSelector: TestSelector = {
-            raw: selector,
-            normalized: this.normalizeSelector(selector),
-            type: this.determineSelectorType(selector, patternName),
-            lineNumber,
-            filePath,
-            context: this.extractContext(line, match.index)
-          };
-
-          selectors.push(testSelector);
+        const selector = this.extractQuotedString(line, startIndex, quoteChar);
+        if (selector) {
+          selectors.push(selector);
         }
       }
     });
 
     return selectors;
+  }
+
+  /**
+   * Extract a complete quoted string from the given starting position
+   */
+  private extractQuotedString(line: string, startIndex: number, quoteChar: string): string | null {
+    let result = '';
+    let i = startIndex;
+    let inEscape = false;
+
+    while (i < line.length) {
+      const char = line[i];
+
+      if (inEscape) {
+        // Add escaped character verbatim
+        result += char;
+        inEscape = false;
+      } else if (char === '\\') {
+        // Escape character next
+        inEscape = true;
+      } else if (char === quoteChar) {
+        // End of quoted string
+        return result;
+      } else {
+        result += char;
+      }
+
+      i++;
+    }
+
+    // If we get here, the string wasn't properly closed
+    return null;
   }
 
   /**

@@ -32,10 +32,7 @@ jobs:
       run: npm ci
 
     - name: Install Playwright browsers
-      uses: playwright/setup@v1
-      with:
-        playwright-version: latest
-        cache: 'npm'
+      run: npx playwright install --with-deps
 
     - name: Build
       run: npm run build

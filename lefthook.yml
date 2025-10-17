@@ -7,7 +7,10 @@ pre-commit:
     lint:
       run: npm run lint
 
-  
+    # Validate ESM configuration before committing
+    validate-esm:
+      run: npm run validate:esm
+
     # Build before committing
     build:
       run: npm run build

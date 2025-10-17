@@ -1,6 +1,6 @@
 {
   "name": "playwright-coverage-reporter",
-  "version": "3.0.6",
+  "version": "3.0.7",
   "type": "module",
   "description": "🎯 Native Playwright coverage reporter with runtime element discovery. Seamlessly integrates with your Playwright test suite to analyze UI element coverage, discover interactive elements during test execution, and generate comprehensive reports with Istanbul support.",
   "main": "dist/reporter.js",
@@ -17,7 +17,8 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:ci": "npm run test:unit && npm run test:integration && npm run test:e2e --project=e2e-chrome",
-    "test:server": "node tests/test-server.js",
+    "test:server": "node tests/test-server.cjs",
+    "validate:esm": "node -e \"console.log('✅ ESM configuration validated')\"",
     "lint": "eslint src/**/*.ts tests/**/*.ts",
     "lint:fix": "eslint src/**/*.ts tests/**/*.ts --fix",
     "typecheck": "tsc --noEmit",

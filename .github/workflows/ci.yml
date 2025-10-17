@@ -39,12 +39,7 @@ jobs:
       run: npm run build
 
     - name: Test
-      run: |
-        # Run tests on chromium only to avoid CI browser issues
-        npx playwright test tests/coverage-verification.spec.ts --project=chromium
-        npx playwright test tests/config.test.ts --project=chromium
-        npx playwright test tests/reporter.test.ts --project=chromium
-        npx playwright test tests/cli.test.ts --project=chromium
+      run: npm run test:ci
 
   publish:
     needs: test

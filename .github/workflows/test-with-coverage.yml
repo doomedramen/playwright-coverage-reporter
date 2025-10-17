@@ -40,12 +40,7 @@ jobs:
       run: npm run build
 
     - name: Run Playwright tests with coverage
-      run: |
-        # Run focused tests with coverage reporting
-        npx playwright test tests/coverage-verification.spec.ts --project=chromium
-        npx playwright test tests/config.test.ts --project=chromium
-        npx playwright test tests/reporter.test.ts --project=chromium
-        npx playwright test tests/cli.test.ts --project=chromium
+      run: npm run test:ci
       env:
         PLAYWRIGHT_COVERAGE_THRESHOLD: 0
         PLAYWRIGHT_COVERAGE_VERBOSE: false

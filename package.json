@@ -1,13 +1,10 @@
 {
   "name": "playwright-coverage-reporter",
-  "version": "2.1.32",
+  "version": "3.0.1",
   "type": "module",
-  "description": "🎯 Native Playwright coverage reporter with runtime element discovery. Seamlessly integrates with Playwright test runner to analyze UI element coverage, discover interactive elements during test execution, and generate comprehensive reports with Istanbul support.",
+  "description": "🎯 Native Playwright coverage reporter with runtime element discovery. Seamlessly integrates with your Playwright test suite to analyze UI element coverage, discover interactive elements during test execution, and generate comprehensive reports with Istanbul support.",
   "main": "dist/reporter.js",
   "types": "dist/reporter.d.ts",
-  "bin": {
-    "playwright-coverage": "dist/cli.js"
-  },
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
@@ -43,13 +40,11 @@
     "istanbul",
     "lcov",
     "reporter",
-    "cli",
     "typescript"
   ],
   "author": "Martin Page <m@rtin.page>",
   "license": "MIT",
   "dependencies": {
-    "commander": "^11.1.0",
     "glob": "^10.3.0",
     "typescript": "^5.9.3"
   },

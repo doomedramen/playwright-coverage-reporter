@@ -38,7 +38,7 @@ npm install -D playwright-coverage-reporter
 
 ### Zero Configuration Setup ✨
 
-**v2.1.0+ - Works out of the box!** The reporter now automatically discovers elements from your test files and requires zero configuration:
+**v3.0.0+ - Works out of the box!** The reporter now automatically discovers elements from your test files and requires zero configuration:
 
 ```typescript
 import { defineConfig } from '@playwright/test';
@@ -62,6 +62,7 @@ That's it! 🎉 The reporter will automatically:
 ### Basic Usage (with customization)
 
 If you want to customize the behavior, you can add options:
+
 ```typescript
 import { defineConfig } from '@playwright/test';
 
@@ -79,10 +80,10 @@ export default defineConfig({
 });
 ```
 
-**Alternative: Class-based Configuration** (may have module resolution issues)
+**Alternative: Class-based Configuration**
 ```typescript
 import { defineConfig } from '@playwright/test';
-import PlaywrightCoverageReporter from 'playwright-coverage-reporter';
+import { PlaywrightCoverageReporter } from 'playwright-coverage-reporter';
 
 export default defineConfig({
   testDir: './tests',
@@ -154,14 +155,6 @@ The most powerful feature of this reporter is **cross-test coverage aggregation*
 - **Track Progress**: See coverage improve across multiple test runs
 - **Team Collaboration**: Shared coverage data works for entire development teams
 
-### Automatic Setup (Optional)
-
-If you prefer automatic setup, you can use the CLI:
-
-```bash
-npx playwright-coverage setup-reporter --type development
-```
-
 ## 🔧 Configuration
 
 ### Configuration Options
@@ -223,7 +216,7 @@ Choose from pre-configured setups:
 
 ```typescript
 // Development setup with detailed HTML reports
-import { CoveragePresets } from 'playwright-coverage-reporter';
+import { PlaywrightCoverageReporter, CoveragePresets } from 'playwright-coverage-reporter';
 
 export default defineConfig({
   reporter: [
@@ -257,118 +250,6 @@ PLAYWRIGHT_COVERAGE_THRESHOLD=90
 PLAYWRIGHT_COVERAGE_VERBOSE=true
 PLAYWRIGHT_COVERAGE_RUNTIME_DISCOVERY=true
 ```
-
-## 🛠️ CLI Tools
-
-The CLI provides helper commands for configuration management:
-
-### `setup-reporter`
-
-Set up Playwright reporter configuration.
-
-```bash
-npx playwright-coverage setup-reporter [options]
-```
-
-**Options:**
-- `-t, --type <type>` - Configuration type: `development|ci|testing|basic|comprehensive` (default: `development`)
-- `-o, --output <path>` - Output Playwright config file (default: `playwright.config.ts`)
-- `-f, --force` - Overwrite existing configuration file
-- `--base-url <url>` - Base URL for your application (default: `http://localhost:3000`)
-- `--threshold <percentage>` - Coverage threshold percentage (default: `0`, set to `80+` for dogfooding)
-- `--page-urls <urls...>` - Additional page URLs to analyze
-- `--no-runtime-discovery` - Disable runtime element discovery
-- `--no-screenshots` - Disable screenshot capture
-
-**Examples:**
-```bash
-# Development setup
-npx playwright-coverage setup-reporter --type development
-
-# CI/CD setup
-npx playwright-coverage setup-reporter --type ci --base-url https://staging.example.com
-
-# Comprehensive setup with custom pages
-npx playwright-coverage setup-reporter --type comprehensive --page-urls /admin /dashboard --threshold 95
-```
-
-### `validate-reporter`
-
-Validate Playwright reporter configuration.
-
-```bash
-npx playwright-coverage validate-reporter [options]
-```
-
-**Options:**
-- `-c, --config <path>` - Path to Playwright config file (default: `playwright.config.ts`)
-
-### `debug-config`
-
-Debug and analyze Playwright coverage configuration with comprehensive validation and performance analysis.
-
-```bash
-npx playwright-coverage debug-config [options]
-```
-
-**Options:**
-- `-c, --config <path>` - Path to Playwright config file (default: `playwright.config.ts`)
-- `--performance` - Include performance analysis and recommendations
-- `--filter-stats` - Include element filter statistics and impact analysis
-
-**Example:**
-```bash
-npx playwright-coverage debug-config --performance --filter-stats
-```
-
-### `performance-test`
-
-Test performance with different optimization settings to find the best configuration for your project.
-
-```bash
-npx playwright-coverage performance-test [options]
-```
-
-**Options:**
-- `-t, --test-dir <path>` - Test directory path (default: `./tests`)
-- `-p, --profile <profile>` - Performance profile: `development|ci|large|minimal` (default: `development`)
-- `--iterations <count>` - Number of test iterations (default: `3`)
-
-**Example:**
-```bash
-npx playwright-coverage performance-test --profile ci --iterations 5
-```
-
-### `filter-test`
-
-Test element filtering with different configurations to optimize coverage analysis.
-
-```bash
-npx playwright-coverage filter-test [options]
-```
-
-**Options:**
-- `-c, --config <string>` - Filter configuration string or preset name
-- `-p, --preset <preset>` - Filter preset: `comprehensive|essential|minimal|forms|navigation`
-- `-u, --url <url>` - Test URL to analyze (default: `http://localhost:3000`)
-
-**Example:**
-```bash
-npx playwright-coverage filter-test --preset essential
-```
-
-### `migrate-to-reporter`
-
-Migrate from standalone CLI to Playwright reporter configuration.
-
-```bash
-npx playwright-coverage migrate-to-reporter [options]
-```
-
-**Options:**
-- `-c, --config <path>` - Path to existing playwright-coverage.config.js
-- `-o, --output <path>` - Output Playwright config file (default: `playwright.config.ts`)
-- `-f, --force` - Overwrite existing configuration file
 
 ## 📊 Reports
 
@@ -494,25 +375,6 @@ export default defineConfig({
 });
 ```
 
-### String-based Reporter Configuration
-
-For simpler setup, you can use string-based configuration:
-
-```typescript
-import { defineConfig } from '@playwright/test';
-
-export default defineConfig({
-  reporter: [
-    ['list'],
-    ['playwright-coverage-reporter', {
-      outputPath: './coverage-report',
-      threshold: 80,
-      verbose: true
-    }]
-  ],
-});
-```
-
 ### CI/CD Integration
 
 #### Enhanced GitHub Actions
@@ -580,32 +442,14 @@ jobs:
 
 ## 🔧 Troubleshooting
 
-### Debug Tools
-
-Use the built-in debugging tools to diagnose issues:
-
-```bash
-# Validate configuration
-npx playwright-coverage validate-reporter
-
-# Debug with performance analysis
-npx playwright-coverage debug-config --performance --filter-stats
-
-# Test performance settings
-npx playwright-coverage performance-test --profile ci
-
-# Test element filtering
-npx playwright-coverage filter-test --preset essential
-```
-
 ### Common Issues and Solutions
 
 #### Configuration Validation Errors
 **Issue**: Configuration validation failed during initialization
 **Solution**:
-- Run `npx playwright-coverage debug-config` for detailed analysis
-- Check for invalid option values or missing required fields
 - Enable `debugMode: true` in configuration for more details
+- Check for invalid option values or missing required fields
+- Verify your playwright.config.ts syntax
 
 #### Performance Issues
 **Issue**: Coverage analysis is too slow or consumes too much memory
@@ -635,7 +479,7 @@ npx playwright-coverage filter-test --preset essential
 **Issue**: Reporter falls back to degraded mode
 **Solution**:
 - Check console for specific error messages and guidance
-- Run `npx playwright-coverage debug-config` to identify configuration issues
+- Enable `debugMode: true` to identify configuration issues
 - Fix underlying configuration problems and restart tests
 - Some errors are recoverable and will provide specific guidance
 

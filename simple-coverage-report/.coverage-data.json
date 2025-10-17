@@ -1,0 +1,129 @@
+{
+  "records": {
+    "#email-clickable-element": {
+      "selector": "#email",
+      "type": "clickable-element",
+      "text": "#email",
+      "id": "email",
+      "firstSeenAt": 1760704135003,
+      "lastSeenAt": 1760704135505,
+      "discoveredIn": [
+        {
+          "url": "cover/tests/coverage",
+          "timestamp": 1760704135003,
+          "discoverySource": "static-analysis"
+        },
+        {
+          "url": "/Users/martin/Developer/playwright",
+          "timestamp": 1760704135505,
+          "discoverySource": "test-execution"
+        }
+      ],
+      "coveredBy": [
+        {
+          "testFile": "/Users/martin/Developer/playwright-cover/tests/coverage-verification.spec.ts",
+          "testName": "should track coverage for simple interactions",
+          "timestamp": 1760704135505,
+          "interactionType": "test-interaction"
+        }
+      ],
+      "isHidden": false
+    },
+    "#password-clickable-element": {
+      "selector": "#password",
+      "type": "clickable-element",
+      "text": "#password",
+      "id": "password",
+      "firstSeenAt": 1760704135003,
+      "lastSeenAt": 1760704135505,
+      "discoveredIn": [
+        {
+          "url": "cover/tests/coverage",
+          "timestamp": 1760704135003,
+          "discoverySource": "static-analysis"
+        },
+        {
+          "url": "/Users/martin/Developer/playwright",
+          "timestamp": 1760704135505,
+          "discoverySource": "test-execution"
+        }
+      ],
+      "coveredBy": [
+        {
+          "testFile": "/Users/martin/Developer/playwright-cover/tests/coverage-verification.spec.ts",
+          "testName": "should track coverage for simple interactions",
+          "timestamp": 1760704135505,
+          "interactionType": "test-interaction"
+        }
+      ],
+      "isHidden": false
+    },
+    "#submit-btn-clickable-element": {
+      "selector": "#submit-btn",
+      "type": "clickable-element",
+      "text": "#submit-btn",
+      "id": "submit-btn",
+      "firstSeenAt": 1760704135003,
+      "lastSeenAt": 1760704135505,
+      "discoveredIn": [
+        {
+          "url": "cover/tests/coverage",
+          "timestamp": 1760704135003,
+          "discoverySource": "static-analysis"
+        },
+        {
+          "url": "/Users/martin/Developer/playwright",
+          "timestamp": 1760704135505,
+          "discoverySource": "test-execution"
+        }
+      ],
+      "coveredBy": [
+        {
+          "testFile": "/Users/martin/Developer/playwright-cover/tests/coverage-verification.spec.ts",
+          "testName": "should track coverage for simple interactions",
+          "timestamp": 1760704135505,
+          "interactionType": "test-interaction"
+        }
+      ],
+      "isHidden": false
+    },
+    "#link-clickable-element": {
+      "selector": "#link",
+      "type": "clickable-element",
+      "text": "#link",
+      "id": "link",
+      "firstSeenAt": 1760704135003,
+      "lastSeenAt": 1760704135505,
+      "discoveredIn": [
+        {
+          "url": "cover/tests/coverage",
+          "timestamp": 1760704135003,
+          "discoverySource": "static-analysis"
+        },
+        {
+          "url": "/Users/martin/Developer/playwright",
+          "timestamp": 1760704135505,
+          "discoverySource": "test-execution"
+        }
+      ],
+      "coveredBy": [
+        {
+          "testFile": "/Users/martin/Developer/playwright-cover/tests/coverage-verification.spec.ts",
+          "testName": "should track coverage for simple interactions",
+          "timestamp": 1760704135505,
+          "interactionType": "test-interaction"
+        }
+      ],
+      "isHidden": false
+    }
+  },
+  "testCoverage": {
+    "/Users/martin/Developer/playwright-cover/tests/coverage-verification.spec.ts": [
+      "#email-clickable-element",
+      "#password-clickable-element",
+      "#submit-btn-clickable-element",
+      "#link-clickable-element"
+    ]
+  },
+  "lastUpdated": 1760704135505
+}

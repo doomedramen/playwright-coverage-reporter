@@ -57,6 +57,7 @@ That's it! 🎉 The reporter will automatically:
 - ✅ Create synthetic elements for coverage tracking
 - ✅ Generate meaningful coverage reports
 - ✅ Work with any existing Playwright tests
+- ✅ Use a 0% threshold by default for mixed test suites (no configuration needed!)
 
 ### Basic Usage (with customization)
 
@@ -172,7 +173,7 @@ All configuration is done directly in your `playwright.config.ts` reporter secti
 | **Core Options** | | | |
 | `outputPath` | string | `./coverage-report` | Directory for coverage reports |
 | `format` | string | `console` | Report format: `console`, `html`, `json`, `lcov`, `all` |
-| `threshold` | number | `80` | Coverage threshold percentage (0-100) |
+| `threshold` | number | `0` | Coverage threshold percentage (0-100) |
 | `verbose` | boolean | `false` | Enable detailed logging |
 | `elementDiscovery` | boolean | `true` | Auto-discover elements on page load |
 | `runtimeDiscovery` | boolean | `false` | Track interactions during tests |
@@ -188,6 +189,33 @@ All configuration is done directly in your `playwright.config.ts` reporter secti
 | `cacheResults` | boolean | `true` | Enable result caching for better performance |
 | `maxConcurrency` | number | `profile-dependent` | Maximum concurrent operations |
 | `timeoutMs` | number | `30000` | Operation timeout in milliseconds |
+
+### Threshold Configuration
+
+The coverage threshold determines when the reporter will fail your test run based on coverage percentage:
+
+```typescript
+// No threshold enforcement (good for mixed test suites with CLI tests)
+export default defineConfig({
+  reporter: [['playwright-coverage-reporter', { threshold: 0 }]]
+});
+
+// Standard coverage enforcement (good for pure UI test suites)
+export default defineConfig({
+  reporter: [['playwright-coverage-reporter', { threshold: 80 }]]
+});
+
+// Dogfooding setup (ensure your own code has good coverage)
+export default defineConfig({
+  reporter: [['playwright-coverage-reporter', { threshold: 85 }]]
+});
+```
+
+**Recommended Thresholds:**
+- **0%**: Mixed test suites (CLI + UI tests), development environments
+- **70-80%**: Standard UI test suites, good balance of coverage vs. practicality
+- **85-95%**: Dogfooding, critical applications, high-quality standards
+- **100%**: Not recommended (can be counterproductive and brittle)
 
 ### Configuration Presets
 
@@ -247,7 +275,7 @@ npx playwright-coverage setup-reporter [options]
 - `-o, --output <path>` - Output Playwright config file (default: `playwright.config.ts`)
 - `-f, --force` - Overwrite existing configuration file
 - `--base-url <url>` - Base URL for your application (default: `http://localhost:3000`)
-- `--threshold <percentage>` - Coverage threshold percentage (default: `80`)
+- `--threshold <percentage>` - Coverage threshold percentage (default: `0`, set to `80+` for dogfooding)
 - `--page-urls <urls...>` - Additional page URLs to analyze
 - `--no-runtime-discovery` - Disable runtime element discovery
 - `--no-screenshots` - Disable screenshot capture

@@ -84,7 +84,7 @@ export class PlaywrightCoverageReporter {
       this.options = {
         outputPath: options.outputPath || './coverage-report',
         format: options.format || 'console',
-        threshold: options.threshold || 80,
+        threshold: options.threshold ?? 0,
         verbose: options.verbose || false,
         elementDiscovery: shouldUseElementDiscovery,
         pageUrls: options.pageUrls || [],
@@ -588,7 +588,7 @@ export class PlaywrightCoverageReporter {
       }
 
       // Check threshold
-      if (aggregatedCoverage.coveragePercentage < (this.options.threshold || 80)) {
+      if (aggregatedCoverage.coveragePercentage < this.options.threshold) {
         console.log(`\n❌ Coverage ${aggregatedCoverage.coveragePercentage}% is below threshold ${this.options.threshold}%`);
       } else {
         console.log(`\n✅ Coverage ${aggregatedCoverage.coveragePercentage}% meets threshold ${this.options.threshold}%`);
@@ -713,7 +713,7 @@ export class PlaywrightCoverageReporter {
    */
   private generateHtmlContent(aggregated: any, recommendations: any[]): string {
     const coveragePercentage = aggregated.coveragePercentage;
-    const threshold = this.options.threshold || 80;
+    const threshold = this.options.threshold;
     const status = coveragePercentage >= threshold ? 'PASS' : 'FAIL';
     const statusColor = coveragePercentage >= threshold ? '#28a745' : '#dc3545';
 

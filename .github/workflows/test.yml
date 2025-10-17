@@ -93,7 +93,7 @@ jobs:
     needs: [unit-tests, integration-tests]
     strategy:
       matrix:
-        browser: [chromium, firefox, webkit]
+        browser: [e2e-chrome, e2e-firefox, e2e-safari]
 
     steps:
     - name: Checkout code
@@ -112,7 +112,18 @@ jobs:
       run: npm run build
 
     - name: Install Playwright browsers
-      run: npx playwright install --with-deps ${{ matrix.browser }}
+      run: |
+        case "${{ matrix.browser }}" in
+          "e2e-chrome")
+            npx playwright install --with-deps chromium
+            ;;
+          "e2e-firefox")
+            npx playwright install --with-deps firefox
+            ;;
+          "e2e-safari")
+            npx playwright install --with-deps webkit
+            ;;
+        esac
 
     - name: Start test server
       run: |
@@ -137,7 +148,7 @@ jobs:
         retention-days: 7
 
     - name: Upload E2E coverage to Codecov
-      if: matrix.browser == 'chromium'
+      if: matrix.browser == 'e2e-chrome'
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage-report/lcov.info

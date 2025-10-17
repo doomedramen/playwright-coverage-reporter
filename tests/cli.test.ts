@@ -5,11 +5,25 @@ import * as path from 'path';
 
 test.describe('CLI Commands', () => {
   const cliPath = path.resolve(__dirname, '../dist/cli.js');
+  const tempDir = path.join(__dirname, 'temp');
 
   test.beforeAll(() => {
     // Ensure the CLI is built
     if (!fs.existsSync(cliPath)) {
       execSync('npm run build', { cwd: path.resolve(__dirname, '..') });
+    }
+
+    // Clean up temp directory before all tests
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+    fs.mkdirSync(tempDir, { recursive: true });
+  });
+
+  test.afterAll(() => {
+    // Clean up temp directory after all tests
+    if (fs.existsSync(tempDir)) {
+      fs.rmSync(tempDir, { recursive: true, force: true });
     }
   });
 
@@ -29,11 +43,6 @@ test.describe('CLI Commands', () => {
   });
 
   test('should setup reporter configuration', () => {
-    const tempDir = path.join(__dirname, 'temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
     const configPath = path.join(tempDir, 'test-playwright.config.ts');
 
     try {
@@ -58,11 +67,6 @@ test.describe('CLI Commands', () => {
   });
 
   test('should validate reporter configuration', () => {
-    const tempDir = path.join(__dirname, 'temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
     const configPath = path.join(tempDir, 'test-playwright.config.ts');
 
     try {
@@ -98,11 +102,6 @@ export default defineConfig({
   });
 
   test('should detect invalid configuration', () => {
-    const tempDir = path.join(__dirname, 'temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
     const configPath = path.join(tempDir, 'invalid-playwright.config.ts');
 
     try {
@@ -132,11 +131,6 @@ export default defineConfig({
   });
 
   test('should migrate from standalone configuration', () => {
-    const tempDir = path.join(__dirname, 'temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
     const oldConfigPath = path.join(tempDir, 'playwright-coverage.config.js');
     const newConfigPath = path.join(tempDir, 'migrated-playwright.config.ts');
 
@@ -178,11 +172,6 @@ export default defineConfig({
   });
 
   test('should handle setup-reporter with different types', () => {
-    const tempDir = path.join(__dirname, 'temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
     const types = ['development', 'ci', 'testing', 'basic', 'comprehensive'];
 
     types.forEach(type => {
@@ -216,11 +205,6 @@ export default defineConfig({
   });
 
   test('should handle custom options in setup-reporter', () => {
-    const tempDir = path.join(__dirname, 'temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
     const configPath = path.join(tempDir, 'custom-playwright.config.ts');
 
     try {
@@ -252,11 +236,6 @@ export default defineConfig({
   });
 
   test('should handle force flag in setup-reporter', () => {
-    const tempDir = path.join(__dirname, 'temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
     const configPath = path.join(tempDir, 'force-test.config.ts');
 
     // Ensure clean state before test
@@ -302,11 +281,6 @@ test.describe('CLI Error Handling', () => {
   });
 
   test('should handle invalid options', () => {
-    const tempDir = path.join(__dirname, 'temp');
-    if (!fs.existsSync(tempDir)) {
-      fs.mkdirSync(tempDir, { recursive: true });
-    }
-
     const configPath = path.join(tempDir, 'invalid-options-test.config.ts');
 
     try {

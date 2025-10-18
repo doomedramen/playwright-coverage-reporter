@@ -377,12 +377,12 @@ describe('PerformanceOptimizer', () => {
 
   describe('Memory Management', () => {
     test('should detect memory threshold exceeded', () => {
-      mockMemoryUsage = 300; // Above threshold of 200
+      optimizer.setMockMemoryUsage(300); // Above threshold of 200
       expect(optimizer['isMemoryThresholdExceeded']()).toBe(true);
     });
 
     test('should not detect threshold when below limit', () => {
-      mockMemoryUsage = 150; // Below threshold of 200
+      optimizer.setMockMemoryUsage(150); // Below threshold of 200
       expect(optimizer['isMemoryThresholdExceeded']()).toBe(false);
     });
 
@@ -392,7 +392,7 @@ describe('PerformanceOptimizer', () => {
         await optimizer.cache(`key${i}`, () => Promise.resolve(`data${i}`));
       }
 
-      mockMemoryUsage = 300; // Trigger threshold
+      optimizer.setMockMemoryUsage(300); // Trigger threshold
       await optimizer['optimizeMemoryUsage']();
 
       // Cache should be cleared if over half the max size
@@ -476,8 +476,7 @@ describe('PerformanceOptimizer', () => {
     });
 
     test('should recommend memory optimization for high memory usage', () => {
-      mockMemoryUsage = 180; // Close to threshold
-      optimizer['setupMemoryMonitoring']();
+      optimizer.setMockMemoryUsage(180); // Close to threshold (80% of 200 = 160)
 
       const recommendations = optimizer.getOptimizationRecommendations();
       expect(recommendations.some(r =>

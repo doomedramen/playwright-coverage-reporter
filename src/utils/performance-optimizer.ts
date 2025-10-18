@@ -50,6 +50,7 @@ export class PerformanceOptimizer {
   private elementCache: Map<string, CacheEntry<any>> = new Map();
   private metrics: PerformanceMetrics[] = [];
   private currentSession: PerformanceMetrics | null = null;
+  private mockMemoryUsage: number | null = null; // For testing
 
   constructor(config: Partial<PerformanceConfig> = {}) {
     this.config = { ...PerformanceOptimizer.DEFAULT_CONFIG, ...config };
@@ -86,7 +87,7 @@ export class PerformanceOptimizer {
         // Allow event loop to process other tasks
         await this.yield();
       } catch (error) {
-        throw new Error(`Batch processing failed at items ${i}-${i + batch.length}: ${error.message}`);
+        throw new Error(`Batch processing failed at items ${i}-${Math.min(i + this.config.batchSize, total) - 1}: ${error.message}`);
       }
     }
 
@@ -285,7 +286,7 @@ export class PerformanceOptimizer {
     }
 
     this.currentSession.endTime = Date.now();
-    this.currentSession.duration = this.currentSession.endTime - this.currentSession.startTime;
+    this.currentSession.duration = Math.max(1, this.currentSession.endTime - this.currentSession.startTime);
     this.currentSession.memoryUsageMB = this.getCurrentMemoryUsage();
     this.currentSession.cacheHitRate = this.getCacheStats().hitRate;
 
@@ -362,11 +363,21 @@ export class PerformanceOptimizer {
    * Get current memory usage in MB
    */
   private getCurrentMemoryUsage(): number {
+    if (this.mockMemoryUsage !== null) {
+      return this.mockMemoryUsage;
+    }
     if (typeof process !== 'undefined' && process.memoryUsage) {
       const usage = process.memoryUsage();
       return usage.heapUsed / 1024 / 1024;
     }
     return 0;
+  }
+
+  /**
+   * Set mock memory usage for testing
+   */
+  setMockMemoryUsage(usageMB: number): void {
+    this.mockMemoryUsage = usageMB;
   }
 
   /**

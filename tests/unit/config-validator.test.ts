@@ -294,6 +294,9 @@ describe('ConfigValidator', () => {
     });
 
     test('should warn when runtimeDiscovery is enabled but elementDiscovery is disabled', () => {
+      // Clear CI environment to avoid extra warnings for this test
+      delete process.env.CI;
+
       const config: CoverageReporterOptions = {
         outputPath: './coverage-report',
         format: 'console',
@@ -311,6 +314,9 @@ describe('ConfigValidator', () => {
     });
 
     test('should warn when screenshots are enabled but format is console only', () => {
+      // Clear CI environment to avoid extra warnings for this test
+      delete process.env.CI;
+
       const config: CoverageReporterOptions = {
         outputPath: './coverage-report',
         format: 'console',

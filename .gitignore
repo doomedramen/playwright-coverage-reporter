@@ -98,3 +98,8 @@ test-results.json
 /e2e-coverage-report
 /test-project
 /playwright-html-report
+
+# Test temp directories for integration tests
+tests/temp-test-*/
+tests/temp-test-coverage/
+tests/temp-test-reports/

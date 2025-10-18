@@ -25,6 +25,8 @@ pre-commit:
 
 pre-push:
   commands:
-    # Full test suite before pushing (using Playwright test runner)
+    # Comprehensive test suite before pushing
+    # This ensures all unit, integration, and critical e2e tests pass
     test:
-      run: npm test
+      run: npm run test:all
+      glob: "{src,tests}/**/*.{ts,js,json}"

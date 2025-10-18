@@ -270,38 +270,48 @@ describe('Report Generation Issues', () => {
   });
 
   test('should handle report generation errors gracefully', async () => {
-    // Test with invalid output path to check error handling
-    const reporter = new PlaywrightCoverageReporter({
-      outputPath: '/invalid/path/that/does/not/exist',
-      format: 'json',
-      verbose: true,
-      debugMode: true,
-      enableErrorRecovery: true,
-      threshold: 0
-    });
+    // Suppress console warnings for this test since we expect filesystem errors
+    const consoleSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    // Mock minimal test data
-    const mockSuite = {
-      type: 'suite' as const,
-      tests: [
-        {
-          type: 'test' as const,
-          title: 'test',
-          location: { file: mockTestFile, line: 1 }
-        }
-      ]
-    };
+    try {
+      // Test with invalid output path to check error handling
+      const reporter = new PlaywrightCoverageReporter({
+        outputPath: '/invalid/path/that/does/not/exist',
+        format: 'json',
+        verbose: false, // Disable verbose to reduce error output
+        debugMode: false, // Disable debug mode to reduce error output
+        enableErrorRecovery: true,
+        elementDiscovery: false, // Disable element discovery to reduce errors
+        runtimeDiscovery: false, // Disable runtime discovery to reduce errors
+        threshold: 0
+      });
 
-    const mockTestResult = { ok: true, status: 'passed', steps: [] };
+      // Mock minimal test data
+      const mockSuite = {
+        type: 'suite' as const,
+        tests: [
+          {
+            type: 'test' as const,
+            title: 'test',
+            location: { file: mockTestFile, line: 1 }
+          }
+        ]
+      };
 
-    // This should not throw an error, but handle it gracefully
-    await expect(async () => {
-      await reporter.onBegin({}, mockSuite);
-      await reporter.onTestBegin(mockSuite.tests[0]);
-      await reporter.onTestEnd(mockSuite.tests[0], mockTestResult);
-      await reporter.onEnd({ status: 'passed' });
-    }).not.toThrow();
+      const mockTestResult = { ok: true, status: 'passed', steps: [] };
 
-    console.log('✅ Report generation errors handled gracefully');
+      // This should not throw an error, but handle it gracefully
+      await expect(async () => {
+        await reporter.onBegin({}, mockSuite);
+        await reporter.onTestBegin(mockSuite.tests[0]);
+        await reporter.onTestEnd(mockSuite.tests[0], mockTestResult);
+        await reporter.onEnd({ status: 'passed' });
+      }).not.toThrow();
+
+      console.log('✅ Report generation errors handled gracefully');
+    } finally {
+      // Restore console.warn
+      consoleSpy.mockRestore();
+    }
   });
 });

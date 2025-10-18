@@ -300,6 +300,7 @@ export class PlaywrightCoverageReporter {
         'test-interaction'
       );
 
+      // Always log coverage marking per test, regardless of duplicates
       if (this.options.verbose) {
         console.log(`✅ Marked ${selectors.length} elements as covered by ${test.title}`);
       }

@@ -87,6 +87,7 @@ export class PerformanceOptimizer {
         // Allow event loop to process other tasks
         await this.yield();
       } catch (error) {
+        // Don't continue processing after error - immediately throw
         throw new Error(`Batch processing failed at items ${i}-${Math.min(i + this.config.batchSize, total) - 1}: ${error.message}`);
       }
     }

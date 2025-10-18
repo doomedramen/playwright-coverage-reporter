@@ -255,8 +255,10 @@ describe('Coverage Mapping Issues', () => {
       await reporter.onEnd({ status: 'passed' });
 
       // Check console output shows coverage marking for both tests
-      const consoleCalls = consoleSpy.mock.calls.map(call => call[0]).join(' ');
-      const coverageMarkingCount = (consoleCalls.match(/Marked.*elements as covered/g) || []).length;
+      const consoleCalls = consoleSpy.mock.calls.map(call => call[0]);
+      const coverageMarkingCount = consoleCalls.filter(call =>
+        typeof call === 'string' && call.includes('Marked') && call.includes('elements as covered')
+      ).length;
       expect(coverageMarkingCount).toBe(2); // Should have logged for both tests
 
       // Check coverage data persistence
@@ -465,9 +467,12 @@ describe('Coverage Mapping Issues', () => {
 
       let foundSelectorsInData = 0;
       for (const selector of consoleSelectors) {
-        const found = Object.keys(records).some(key =>
-          key.includes(selector.replace(/[\[\]]/g, ''))
-        );
+        const found = Object.keys(records).some(key => {
+          const record = records[key];
+          // Check both the key and the selector field in the record
+          return key.includes(selector.replace(/[\[\]]/g, '')) ||
+                 (record.selector && record.selector.includes(selector));
+        });
         if (found) foundSelectorsInData++;
       }
 

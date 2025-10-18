@@ -40,8 +40,11 @@ export class CoverageCalculator {
     testedSelectors.forEach(testedSelector => {
       const matchedElement = this.findMatchingElement(testedSelector, pageElements, matchedElements);
       if (matchedElement) {
+        // Only count as newly covered if this element wasn't already matched
+        const wasAlreadyMatched = matchedElements.has(matchedElement);
         matchedElements.add(matchedElement);
-        if (coverageByType[matchedElement.type]) {
+
+        if (coverageByType[matchedElement.type] && !wasAlreadyMatched) {
           coverageByType[matchedElement.type].covered++;
         }
       }
@@ -58,7 +61,7 @@ export class CoverageCalculator {
     Object.entries(coverageByType).forEach(([type, data]) => {
       finalCoverageByType[type as ElementType] = data.total > 0
         ? Math.round((data.covered / data.total) * 100)
-        : 100;
+        : 0;
     });
 
     return {
@@ -492,7 +495,7 @@ export class CoverageCalculator {
     Object.entries(coverageByType).forEach(([type, data]) => {
       finalCoverageByType[type as ElementType] = data.total > 0
         ? Math.round((data.covered / data.total) * 100)
-        : 100;
+        : 0;
     });
 
     return {

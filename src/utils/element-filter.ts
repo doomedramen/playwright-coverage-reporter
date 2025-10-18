@@ -158,7 +158,8 @@ export class ElementFilter {
       if (reason) {
         exclusionReasons[reason] = (exclusionReasons[reason] || 0) + 1;
       } else {
-        includedElements.push(element);
+        // Create a deep copy to ensure immutability
+        includedElements.push(JSON.parse(JSON.stringify(element)));
       }
     }
 
@@ -217,9 +218,13 @@ export class ElementFilter {
 
     // Check text pattern inclusion
     if (this.config.includeTextPatterns.length > 0) {
-      const matchesIncludeText = this.config.includeTextPatterns.some(pattern =>
-        pattern.test(element.text || '')
-      );
+      const matchesIncludeText = this.config.includeTextPatterns.some(pattern => {
+        const textMatch = pattern.test(element.text || '');
+        // For ID and class matching, only include if pattern doesn't match empty strings specifically
+        const idMatch = element.id && pattern.source !== '^$' ? pattern.test(element.id) : false;
+        const classMatch = element.class && pattern.source !== '^$' ? pattern.test(element.class) : false;
+        return textMatch || idMatch || classMatch;
+      });
       if (!matchesIncludeText) {
         return 'no_matching_include_text_pattern';
       }
@@ -297,14 +302,33 @@ export class ElementFilter {
    * Check if element matches attribute filter
    */
   private matchesAttributeFilter(element: PlaywrightElement, filter: AttributeFilter): boolean {
-    const attrValue = element.attributes?.[filter.name];
+    // Get attribute value from various sources
+    let attrValue = element.attributes?.[filter.name];
+
+    // Handle special cases for common attributes that may not be in attributes object
+    if (attrValue === undefined) {
+      switch (filter.name) {
+        case 'class':
+          attrValue = element.class;
+          break;
+        case 'id':
+          attrValue = element.id;
+          break;
+        case 'text':
+          attrValue = element.text;
+          break;
+        case 'tagName':
+          attrValue = element.tagName;
+          break;
+      }
+    }
 
     if (filter.exists !== undefined) {
-      const hasAttribute = attrValue !== undefined;
+      const hasAttribute = attrValue !== undefined && attrValue !== '';
       return filter.exists ? hasAttribute : !hasAttribute;
     }
 
-    if (attrValue === undefined) {
+    if (attrValue === undefined || attrValue === '') {
       return false;
     }
 

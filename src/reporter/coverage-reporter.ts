@@ -4,6 +4,8 @@ import { ConfigValidator } from '../utils/config-validator';
 import { ErrorHandler, CoverageAnalysisError, ErrorCodes } from '../utils/error-handler';
 import { PerformanceOptimizer, PerformancePresets } from '../utils/performance-optimizer';
 import { ElementFilter } from '../utils/element-filter';
+import fs from 'fs';
+import path from 'path';
 
 // Define basic types for reporter interface
 interface BaseTestEntry {
@@ -499,14 +501,14 @@ export class PlaywrightCoverageReporter {
   }> {
     const selectors: Array<{ raw: string; normalized: string; type: SelectorType }> = [];
 
-    // Playwright selector patterns
+    // Enhanced Playwright selector patterns
     const patterns = [
       // getBy methods
       /getBy[A-Za-z]+\(['"`]([^'"`]+)['"`]/g,
       // locator() calls
       /locator\(['"`]([^'"`]+)['"`]/g,
-      // Direct selectors in page methods
-      /(?:click|fill|type|check|uncheck|selectOption|hover|focus|blur)\(['"`]([^'"`]+)['"`]/g,
+      // Direct selectors in page methods (improved pattern)
+      /(?:click|fill|type|check|uncheck|selectOption|hover|focus|blur)\s*\(\s*['"`]([^'"`]+)['"`]\s*\)/g,
       // CSS selectors
       /css=['"`]([^'"`]+)['"`]/g,
       // XPath selectors
@@ -517,7 +519,15 @@ export class PlaywrightCoverageReporter {
       /role=['"`]([^'"`]+)['"`]/g,
       // Test ID selectors
       /test(?:Id)?=['"`]([^'"`]+)['"`]/g,
-      // General quoted strings that might be selectors
+      // CSS selectors with attributes (like input[name="email"])
+      /([a-zA-Z][a-zA-Z0-9]*\[[^\]]+\])/g,
+      // CSS selectors with pseudo-classes
+      /([a-zA-Z][a-zA-Z0-9]*:[a-zA-Z-]+)/g,
+      // CSS selectors with classes
+      /([a-zA-Z][a-zA-Z0-9]*\.[a-zA-Z][a-zA-Z0-9\-_\.]*)/g,
+      // CSS selectors with IDs
+      /([a-zA-Z][a-zA-Z0-9]*#[a-zA-Z][a-zA-Z0-9\-_]*)/g,
+      // General quoted strings that might be selectors (improved pattern)
       /['"`]([a-zA-Z][a-zA-Z0-9\s\-\[\]>#+\.:^~=()]*?)['"`]/g
     ];
 
@@ -652,8 +662,6 @@ export class PlaywrightCoverageReporter {
    * Generate JSON coverage report
    */
   private generateJsonReport(aggregated: any, recommendations: any[]): void {
-    const fs = require('fs');
-    const path = require('path');
     const outputPath = this.options.outputPath || './coverage-report';
 
     if (!fs.existsSync(outputPath)) {
@@ -703,8 +711,6 @@ export class PlaywrightCoverageReporter {
    * Generate HTML coverage report
    */
   private generateHtmlReport(aggregated: any, recommendations: any[]): void {
-    const fs = require('fs');
-    const path = require('path');
     const outputPath = this.options.outputPath || './coverage-report';
 
     if (!fs.existsSync(outputPath)) {

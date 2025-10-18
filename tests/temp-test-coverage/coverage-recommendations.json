@@ -1,0 +1,160 @@
+{
+  "recommendations": [
+    {
+      "element": {
+        "selector": "input[name=email]",
+        "type": "clickable-element",
+        "text": "input[name=\"email\"]",
+        "firstSeenAt": 1760824259242,
+        "lastSeenAt": 1760824259242,
+        "discoveredIn": [
+          {
+            "url": "cover/tests/fixtures/sample",
+            "timestamp": 1760824259242,
+            "discoverySource": "static-analysis"
+          }
+        ],
+        "coveredBy": [],
+        "isHidden": false
+      },
+      "recommendation": "Interactive element \"input[name=email]\" is not tested. Consider adding test coverage.",
+      "priority": "low",
+      "suggestedTest": "test('should interact with input[name=email]', async ({ page }) => {\n  await page.click('input[name=email]');\n  // Add appropriate assertions\n});"
+    },
+    {
+      "element": {
+        "selector": "input[name=password]",
+        "type": "clickable-element",
+        "text": "input[name=\"password\"]",
+        "firstSeenAt": 1760824259242,
+        "lastSeenAt": 1760824259242,
+        "discoveredIn": [
+          {
+            "url": "cover/tests/fixtures/sample",
+            "timestamp": 1760824259242,
+            "discoverySource": "static-analysis"
+          }
+        ],
+        "coveredBy": [],
+        "isHidden": false
+      },
+      "recommendation": "Interactive element \"input[name=password]\" is not tested. Consider adding test coverage.",
+      "priority": "low",
+      "suggestedTest": "test('should interact with input[name=password]', async ({ page }) => {\n  await page.click('input[name=password]');\n  // Add appropriate assertions\n});"
+    },
+    {
+      "element": {
+        "selector": "button[type=submit]",
+        "type": "clickable-element",
+        "text": "button[type=\"submit\"]",
+        "firstSeenAt": 1760824259242,
+        "lastSeenAt": 1760824259242,
+        "discoveredIn": [
+          {
+            "url": "cover/tests/fixtures/sample",
+            "timestamp": 1760824259242,
+            "discoverySource": "static-analysis"
+          }
+        ],
+        "coveredBy": [],
+        "isHidden": false
+      },
+      "recommendation": "Interactive element \"button[type=submit]\" is not tested. Consider adding test coverage.",
+      "priority": "low",
+      "suggestedTest": "test('should interact with button[type=submit]', async ({ page }) => {\n  await page.click('button[type=submit]');\n  // Add appropriate assertions\n});"
+    },
+    {
+      "element": {
+        "selector": "h1",
+        "type": "clickable-element",
+        "text": "h1",
+        "firstSeenAt": 1760824259242,
+        "lastSeenAt": 1760824259242,
+        "discoveredIn": [
+          {
+            "url": "cover/tests/fixtures/sample",
+            "timestamp": 1760824259242,
+            "discoverySource": "static-analysis"
+          }
+        ],
+        "coveredBy": [],
+        "isHidden": false
+      },
+      "recommendation": "Interactive element \"h1\" is not tested. Consider adding test coverage.",
+      "priority": "low",
+      "suggestedTest": "test('should interact with h1', async ({ page }) => {\n  await page.click('h1');\n  // Add appropriate assertions\n});"
+    },
+    {
+      "element": {
+        "selector": ".error-message",
+        "type": "clickable-element",
+        "text": ".error-message",
+        "className": "error-message",
+        "firstSeenAt": 1760824259242,
+        "lastSeenAt": 1760824259242,
+        "discoveredIn": [
+          {
+            "url": "cover/tests/fixtures/sample",
+            "timestamp": 1760824259242,
+            "discoverySource": "static-analysis"
+          }
+        ],
+        "coveredBy": [],
+        "isHidden": false
+      },
+      "recommendation": "Interactive element \".error-message\" is not tested. Consider adding test coverage.",
+      "priority": "low",
+      "suggestedTest": "test('should interact with .error-message', async ({ page }) => {\n  await page.click('.error-message');\n  // Add appropriate assertions\n});"
+    },
+    {
+      "element": {
+        "selector": "input[name=email] + .error",
+        "type": "clickable-element",
+        "text": "input[name=\"email\"] + .error",
+        "className": "error",
+        "firstSeenAt": 1760824259242,
+        "lastSeenAt": 1760824259242,
+        "discoveredIn": [
+          {
+            "url": "cover/tests/fixtures/sample",
+            "timestamp": 1760824259242,
+            "discoverySource": "static-analysis"
+          }
+        ],
+        "coveredBy": [],
+        "isHidden": false
+      },
+      "recommendation": "Interactive element \"input[name=email] + .error\" is not tested. Consider adding test coverage.",
+      "priority": "low",
+      "suggestedTest": "test('should interact with input[name=email] + .error', async ({ page }) => {\n  await page.click('input[name=email] + .error');\n  // Add appropriate assertions\n});"
+    },
+    {
+      "element": {
+        "selector": "input[name=password] + .error",
+        "type": "clickable-element",
+        "text": "input[name=\"password\"] + .error",
+        "className": "error",
+        "firstSeenAt": 1760824259242,
+        "lastSeenAt": 1760824259242,
+        "discoveredIn": [
+          {
+            "url": "cover/tests/fixtures/sample",
+            "timestamp": 1760824259242,
+            "discoverySource": "static-analysis"
+          }
+        ],
+        "coveredBy": [],
+        "isHidden": false
+      },
+      "recommendation": "Interactive element \"input[name=password] + .error\" is not tested. Consider adding test coverage.",
+      "priority": "low",
+      "suggestedTest": "test('should interact with input[name=password] + .error', async ({ page }) => {\n  await page.click('input[name=password] + .error');\n  // Add appropriate assertions\n});"
+    }
+  ],
+  "summary": {
+    "total": 7,
+    "high": 0,
+    "medium": 0,
+    "low": 7
+  }
+}

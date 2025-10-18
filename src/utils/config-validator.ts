@@ -312,6 +312,17 @@ export class ConfigValidator {
         return;
       }
 
+      // Check for trailing spaces
+      if (url !== url.trim()) {
+        errors.push({
+          field: `pageUrls[${index}]`,
+          message: 'URL contains leading or trailing spaces',
+          severity: 'error',
+          suggestion: 'Remove spaces from URL'
+        });
+        return;
+      }
+
       try {
         new URL(url);
       } catch {
@@ -357,11 +368,19 @@ export class ConfigValidator {
       }
 
       if (config.captureScreenshots) {
+        let message = 'Screenshots in CI may consume significant storage';
+        let suggestion = 'Disable screenshots in CI or ensure cleanup';
+
+        if (config.format === 'console') {
+          message = 'Screenshots in CI may consume significant storage and format is console only';
+          suggestion = 'Disable screenshots in CI or add html/json format to see screenshots';
+        }
+
         warnings.push({
           field: 'captureScreenshots',
-          message: 'Screenshots in CI may consume significant storage',
+          message,
           severity: 'warning',
-          suggestion: 'Disable screenshots in CI or ensure cleanup'
+          suggestion
         });
       }
 

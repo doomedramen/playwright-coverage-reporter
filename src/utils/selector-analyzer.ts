@@ -95,7 +95,7 @@ export class SelectorAnalyzer {
                element.selector.includes(normalized);
 
       case SelectorType.LABEL:
-        return element.accessibleName?.toLowerCase().includes(normalized.toLowerCase());
+        return (element.accessibleName?.toLowerCase() || '').includes(normalized.toLowerCase());
 
       default:
         return false;
@@ -107,9 +107,29 @@ export class SelectorAnalyzer {
    */
   private cssMatch(selector: string, element: PageElement): boolean {
     if (element.selector === selector) return true;
-    if (selector.includes(element.text || '')) return true;
-    if (selector.includes(element.class || '')) return true;
-    if (selector.includes(element.id || '')) return true;
+    if (element.class && selector === `.${element.class}`) return true;
+    if (element.id && selector === `#${element.id}`) return true;
+    if (element.text && selector.includes(element.text)) return true;
+
+    // Check if selector matches any class in the element's class list
+    if (element.class && selector.startsWith('.')) {
+      const className = selector.substring(1);
+      return element.class.split(' ').includes(className);
+    }
+
+    // Check for complex selectors with multiple classes
+    if (element.class && selector.includes('.')) {
+      const elementClasses = element.class.split(' ');
+      // Extract class names from selector
+      const selectorClassMatches = selector.match(/\.([a-zA-Z0-9_-]+)/g);
+      if (selectorClassMatches) {
+        const selectorClasses = selectorClassMatches.map(cls => cls.substring(1));
+        // Check if all selector classes are present in element
+        return selectorClasses.every(cls => elementClasses.includes(cls));
+      }
+    }
+
+    
     return false;
   }
 
@@ -167,6 +187,8 @@ export class SelectorAnalyzer {
         return !!element.role;
       case SelectorType.PLACEHOLDER:
         return element.type === ElementType.INPUT || element.type === ElementType.TEXTAREA;
+      case SelectorType.LABEL:
+        return !!element.accessibleName;
       default:
         return false;
     }
@@ -232,7 +254,7 @@ export class SelectorAnalyzer {
 
     // CSS selector issues
     if (typeCounts[SelectorType.CSS] > 0) {
-      recommendations.push(`${typeCounts[SelectorType.CSS]} CSS selectors are failing - DOM structure may have changed`);
+      recommendations.push(`${typeCounts[SelectorType.CSS]} CSS selectors are failing`);
       recommendations.push(`Review CSS selectors and update them to match current DOM structure`);
     }
 

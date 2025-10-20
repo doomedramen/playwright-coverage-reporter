@@ -429,6 +429,11 @@ export const test = base.extend<CoverageFixture>({
   }
 });
 
+import { ScreenshotCapture } from '../utils/screenshot-capture';
+
+export { ScreenshotCapture } from '../utils/screenshot-capture';
+export { expect } from '@playwright/test';
+
 // Export functions for external access (e.g., from reporters)
 export function getGlobalCoverageData(): Map<string, CoverageData> {
   return globalCoverageData;
@@ -437,5 +442,3 @@ export function getGlobalCoverageData(): Map<string, CoverageData> {
 export function clearCoverageData(): void {
   globalCoverageData.clear();
 }
-
-export { expect } from '@playwright/test';

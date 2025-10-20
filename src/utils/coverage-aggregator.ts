@@ -550,4 +550,16 @@ export class CoverageAggregator {
   private getNestedValue(obj: any, path: string): string {
     return path.split('.').reduce((current, key) => current?.[key], obj);
   }
+
+  /**
+   * Get screenshot data for uncovered elements
+   */
+  getUncoveredElementsForScreenshots(): Array<{ selector: string; type?: string; text?: string }> {
+    const aggregated = this.generateAggregatedCoverage();
+    return aggregated.uncoveredElements.map(element => ({
+      selector: element.selector,
+      type: element.type,
+      text: element.text
+    }));
+  }
 }

@@ -22,5 +22,8 @@ export type {
   SelectorType
 } from './types';
 
+// Screenshot capture utility
+export { ScreenshotCapture } from './utils/screenshot-capture';
+
 // Note: CLI functionality is handled separately via the bin entry in package.json
 // to avoid conflicts with Playwright's CLI resolution

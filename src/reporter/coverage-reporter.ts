@@ -605,6 +605,11 @@ export class PlaywrightCoverageReporter {
         this.generateHtmlReport(aggregatedCoverage, uncoveredWithRecommendations);
       }
 
+      // Generate LCOV report
+      if (this.options.format === 'lcov' || this.options.format === 'istanbul' || this.options.format === 'all') {
+        this.generateLcovReport(aggregatedCoverage, uncoveredWithRecommendations);
+      }
+
       // Check threshold
       if (aggregatedCoverage.coveragePercentage < this.options.threshold) {
         console.log(`\n❌ Coverage ${aggregatedCoverage.coveragePercentage}% is below threshold ${this.options.threshold}%`);
@@ -1039,6 +1044,93 @@ export class PlaywrightCoverageReporter {
 
     // Default to CSS
     return SelectorType.CSS;
+  }
+
+  /**
+   * Generate LCOV coverage report
+   */
+  private generateLcovReport(aggregated: any, recommendations: any[]): void {
+    const outputPath = this.options.outputPath || './coverage-report';
+
+    if (!fs.existsSync(outputPath)) {
+      fs.mkdirSync(outputPath, { recursive: true });
+    }
+
+    // Generate LCOV format content
+    const lcovContent = this.generateLcovContent(aggregated, recommendations);
+    
+    fs.writeFileSync(
+      path.join(outputPath, 'lcov.info'),
+      lcovContent
+    );
+
+    // Also create a separate summary file
+    const summaryData = {
+      summary: {
+        totalElements: aggregated.totalElements,
+        coveredElements: aggregated.coveredElements,
+        uncoveredElements: aggregated.uncoveredElements.length,
+        coveragePercentage: aggregated.coveragePercentage,
+        testFiles: aggregated.testFiles.length,
+        lastUpdated: aggregated.lastUpdated
+      },
+      generatedAt: new Date().toISOString()
+    };
+
+    fs.writeFileSync(
+      path.join(outputPath, 'lcov-summary.json'),
+      JSON.stringify(summaryData, null, 2)
+    );
+  }
+
+  /**
+   * Generate LCOV content string
+   */
+  private generateLcovContent(aggregated: any, recommendations: any[]): string {
+    const lines: string[] = [];
+    
+    // In UI element coverage, we simulate LCOV format by treating each element as a "line"
+    // This creates a LCOV file that can be processed by CI/CD tools
+    if (aggregated.testFiles && aggregated.testFiles.length > 0) {
+      // If we have test files, use them
+      for (const testFile of aggregated.testFiles) {
+        lines.push(`TN:Test Name for ${testFile}`);
+        lines.push(`SF:${testFile.replace(/\\/g, '/')}`); // Standardize path separators
+        
+        // Create virtual line coverage based on element coverage
+        const coveredElements = aggregated.coveredElements;
+        const totalElements = aggregated.totalElements;
+        
+        // For each potential element, mark if it was covered (in a real source file scenario)
+        for (let i = 1; i <= totalElements; i++) {
+          const isCovered = i <= coveredElements;
+          lines.push(`DA:${i},${isCovered ? 1 : 0}`); // DA = line data - line number and hit count
+        }
+        
+        lines.push(`LF:${totalElements}`); // LF = lines found
+        lines.push(`LH:${coveredElements}`); // LH = lines hit
+        lines.push(`end_of_record`);
+      }
+    } else {
+      // If no test files but we have aggregated data, create a default entry
+      lines.push(`TN:Default Test`);
+      lines.push(`SF:default_file.ts`); // Fallback file name
+      
+      const coveredElements = aggregated.coveredElements || 0;
+      const totalElements = aggregated.totalElements || 0;
+      
+      // For each potential element, mark if it was covered
+      for (let i = 1; i <= totalElements; i++) {
+        const isCovered = i <= coveredElements;
+        lines.push(`DA:${i},${isCovered ? 1 : 0}`); // DA = line data - line number and hit count
+      }
+      
+      lines.push(`LF:${totalElements}`); // LF = lines found
+      lines.push(`LH:${coveredElements}`); // LH = lines hit
+      lines.push(`end_of_record`);
+    }
+    
+    return lines.join('\n');
   }
 }
 

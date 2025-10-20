@@ -18,6 +18,7 @@ Playwright Coverage Reporter helps you ensure your E2E tests are thoroughly test
 - 📊 **Multiple Report Formats**: Console, JSON, HTML, and LCOV coverage reports with detailed insights
 - 🔍 **Runtime Element Discovery**: Automatically discover interactive elements during test execution
 - 🎯 **Istanbul Integration**: Export coverage data in LCOV format for CI/CD integration
+- 📸 **Screenshot Capture**: Capture screenshots of uncovered elements for visual debugging
 
 ### Enterprise Features
 - ⚡ **Performance Optimization**: Batch processing, concurrency control, and memory management for large test suites

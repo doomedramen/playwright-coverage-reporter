@@ -1,6 +1,6 @@
 {
   "name": "playwright-coverage-reporter",
-  "version": "3.1.11",
+  "version": "3.1.12",
   "type": "module",
   "description": "🎯 Native Playwright coverage reporter with runtime element discovery. Seamlessly integrates with your Playwright test suite to analyze UI element coverage, discover interactive elements during test execution, and generate comprehensive reports with Istanbul support.",
   "main": "dist/reporter.js",
@@ -27,7 +27,7 @@
     "typecheck": "tsc --noEmit",
     "prepublishOnly": "npm run build",
     "prepare": "npm run build",
-    "postinstall": "lefthook install",
+    "postinstall": "node scripts/postinstall.js",
     "release": "npm run test:all && package-bump patch",
     "release:minor": "npm run test:all && package-bump minor",
     "release:major": "npm run test:all && package-bump major"
@@ -79,6 +79,7 @@
   },
   "files": [
     "dist",
+    "scripts",
     "README.md",
     "LICENSE"
   ],

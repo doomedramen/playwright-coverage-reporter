@@ -28,9 +28,10 @@ release bump="patch":
     echo "🧪 Running tests..."
     npm run test:all
 
-    # Bump version and create git tag
+    # Bump version using package-bump
     echo "📦 Bumping version ({{bump}})..."
-    NEW_VERSION=$(npm version {{bump}} --no-git-tag-version | sed 's/^v//')
+    package-bump {{bump}}
+    NEW_VERSION=$(node -p "require('./package.json').version")
     echo "✅ Version bumped to $NEW_VERSION"
 
     # Build the project

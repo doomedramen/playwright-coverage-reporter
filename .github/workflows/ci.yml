@@ -3,8 +3,6 @@ name: CI/CD Pipeline
 on:
   push:
     branches: [ main, develop ]
-    tags:
-      - 'v*'
   pull_request:
     branches: [ main, develop ]
   workflow_dispatch:  # Allow manual triggering
@@ -14,7 +12,6 @@ on:
 
 permissions:
   contents: write
-  packages: write
   pull-requests: write
 
 env:
@@ -509,104 +506,6 @@ jobs:
         path: performance-results/
         retention-days: 7
 
-  # Build and publish (only on tags and main branch)
-  publish:
-    name: Build and Publish
-    runs-on: ubuntu-latest
-    needs: [unit-tests, integration-tests, e2e-tests, code-quality, security-audit]
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push' || startsWith(github.ref, 'refs/tags/')
-
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-        registry-url: 'https://registry.npmjs.org'
-        cache: 'npm'
-
-    - name: Install dependencies
-      run: npm ci
-
-    - name: Build project
-      run: npm run build
-
-    - name: Test plugin installation
-      run: |
-        npm pack
-        mkdir test-installation
-        cd test-installation
-        npm init -y
-        npm install ../playwright-coverage-reporter-*.tgz
-        # Verify the package can be imported
-        node -e "console.log('✅ Package can be imported successfully')"
-
-    - name: Get current version
-      id: version
-      run: |
-        if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-          # For main branch pushes, use version from package.json and create tag
-          VERSION=$(node -p "require('./package.json').version")
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "is_main_branch=true" >> $GITHUB_OUTPUT
-        else
-          # For tag pushes, extract version from tag
-          VERSION=$(echo $GITHUB_REF | sed 's/refs\/tags\/v//')
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "is_main_branch=false" >> $GITHUB_OUTPUT
-        fi
-
-    - name: Create and push tag (main branch only)
-      if: steps.version.outputs.is_main_branch == 'true'
-      run: |
-        git config --local user.email "action@github.com"
-        git config --local user.name "GitHub Action"
-        git tag "v${{ steps.version.outputs.version }}"
-        git push origin "v${{ steps.version.outputs.version }}"
-
-    - name: Publish to NPM
-      run: npm publish
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-
-    - name: Create GitHub Release
-      run: |
-        # Create release using GitHub CLI
-        gh release create "v${{ steps.version.outputs.version }}" \
-          --title "Release v${{ steps.version.outputs.version }}" \
-          --notes "🎯 **Playwright Coverage Reporter v${{ steps.version.outputs.version }}**
-
-          ## 🚀 Installation
-          \`\`\`bash
-          npm install -D playwright-coverage-reporter
-          \`\`\`
-
-          ## ✨ What's new
-          - Comprehensive UI element coverage analysis with zero configuration
-          - Istanbul/LCOV format support for CI/CD integration
-          - Multiple report formats (console, JSON, HTML)
-          - Native Playwright integration - no CLI needed
-          - Cross-browser support (Chrome, Firefox)
-          - Performance optimizations and bug fixes
-
-          ## 📖 Quick Start
-          \`\`\`typescript
-          import { defineConfig } from '@playwright/test';
-
-          export default defineConfig({
-            reporter: [
-              ['list'],
-              ['playwright-coverage-reporter']
-            ]
-          });
-          \`\`\`
-
-          📚 [Documentation](https://github.com/DoomedRamen/playwright-coverage-reporter#readme)"
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   # Test summary
   test-summary:
     name: Test Summary
@@ -636,12 +535,6 @@ jobs:
               "${{ needs.code-quality.result }}" == "success" &&
               "${{ needs.security-audit.result }}" == "success" ]]; then
           echo "✅ All checks passed successfully!" >> $GITHUB_STEP_SUMMARY
-
-          if [[ "${{ github.ref }}" == "refs/heads/main" ]]; then
-            echo "🚀 Publishing to NPM and creating GitHub release automatically" >> $GITHUB_STEP_SUMMARY
-          elif [[ "${{ github.ref }}" == refs/tags/* ]]; then
-            echo "🚀 Publishing to NPM and creating GitHub release from tag" >> $GITHUB_STEP_SUMMARY
-          fi
         else
           echo "❌ Some checks failed. Please review the individual job results." >> $GITHUB_STEP_SUMMARY
         fi

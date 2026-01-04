@@ -30,7 +30,7 @@ release bump="patch":
 
     # Bump version using package-bump
     echo "📦 Bumping version ({{bump}})..."
-    package-bump {{bump}}
+    npx package-bump {{bump}}
     NEW_VERSION=$(node -p "require('./package.json').version")
     echo "✅ Version bumped to $NEW_VERSION"
 

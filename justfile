@@ -54,25 +54,17 @@ release bump="patch":
 
     # Create GitHub release
     echo "🎉 Creating GitHub release..."
-    gh release create "v$NEW_VERSION" \
-        --title "Release v$NEW_VERSION" \
-        --notes "## 🚀 Installation
-
-\`\`\`bash
-npm install -D playwright-coverage-reporter
-\`\`\`
-
-## 📦 Changes
-
-See [CHANGELOG](https://github.com/DoomedRamen/playwright-coverage-reporter/compare/v${PREV_VERSION}...v${NEW_VERSION}) for details."
+    gh release create "v$NEW_VERSION" --title "Release v$NEW_VERSION" --notes "Release v$NEW_VERSION"
 
     echo "✅ Release $NEW_VERSION complete!"
 
 # Minor release
-release-minor: release minor
+release-minor:
+    just release minor
 
 # Major release
-release-major: release major
+release-major:
+    just release major
 
 # Publish without version bump (assumes tag already exists)
 publish:
@@ -91,11 +83,5 @@ release-notes:
 
     VERSION=$(node -p "require('./package.json').version")
     echo "🎉 Creating GitHub release for v$VERSION..."
-    gh release create "v$VERSION" \
-        --title "Release v$VERSION" \
-        --notes "## 🚀 Installation
-
-\`\`\`bash
-npm install -D playwright-coverage-reporter
-\`\`\`"
+    gh release create "v$VERSION" --title "Release v$VERSION" --notes "Release v$VERSION"
     echo "✅ GitHub release created!"
